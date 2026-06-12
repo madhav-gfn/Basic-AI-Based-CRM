@@ -1,0 +1,155 @@
+// packages/db/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// CUSTOMER
+// ─────────────────────────────────────────────
+model Customer {
+  id         String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  phone      String?
+  gender     String?
+  city       String?
+  signupDate DateTime @default(now()) @map("signup_date")
+
+  // Relations
+  orders         Order[]
+  communications Communication[]
+
+  @@map("customers")
+}
+
+// ─────────────────────────────────────────────
+// ORDER
+// ─────────────────────────────────────────────
+model Order {
+  id         String   @id @default(uuid())
+  customerId String   @map("customer_id")
+  orderDate  DateTime @default(now()) @map("order_date")
+  orderValue Float    @map("order_value")
+  category   String
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("orders")
+}
+
+// ─────────────────────────────────────────────
+// SEGMENT
+// ─────────────────────────────────────────────
+model Segment {
+  id         String   @id @default(uuid())
+  name       String
+  definition Json     // e.g. { "rules": [{ "field": "city", "op": "eq", "value": "Delhi" }] }
+  createdBy  String   @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  campaigns Campaign[]
+
+  @@map("segments")
+}
+
+// ─────────────────────────────────────────────
+// CAMPAIGN
+// ─────────────────────────────────────────────
+model Campaign {
+  id         String         @id @default(uuid())
+  name       String
+  audienceId String         @map("audience_id")
+  channel    Channel
+  objective  String?
+  status     CampaignStatus @default(DRAFT)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  launchedAt DateTime?      @map("launched_at")
+
+  // Relations
+  audience       Segment         @relation(fields: [audienceId], references: [id])
+  communications Communication[]
+
+  @@map("campaigns")
+}
+
+// ─────────────────────────────────────────────
+// COMMUNICATION  (one per customer per campaign)
+// ─────────────────────────────────────────────
+model Communication {
+  id         String              @id @default(uuid())
+  campaignId String              @map("campaign_id")
+  customerId String              @map("customer_id")
+  channel    Channel
+  message    String              // rendered personalised message
+  status     CommunicationStatus @default(PENDING)
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  // Relations
+  campaign Campaign             @relation(fields: [campaignId], references: [id])
+  customer Customer             @relation(fields: [customerId], references: [id])
+  events   CommunicationEvent[]
+
+  @@map("communications")
+}
+
+// ─────────────────────────────────────────────
+// COMMUNICATION EVENT  (lifecycle callbacks)
+// ─────────────────────────────────────────────
+model CommunicationEvent {
+  id              String    @id @default(uuid())
+  communicationId String    @map("communication_id")
+  eventType       EventType
+  timestamp       DateTime  @default(now())
+  metadata        Json?     // optional: link clicked, error reason, etc.
+
+  // Relations
+  communication Communication @relation(fields: [communicationId], references: [id])
+
+  @@map("communication_events")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+enum Channel {
+  WHATSAPP
+  SMS
+  EMAIL
+  RCS
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum CommunicationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  OPENED
+  READ
+  CLICKED
+  FAILED
+}
+
+enum EventType {
+  SENT
+  DELIVERED
+  OPENED
+  READ
+  CLICKED
+  CONVERTED  // order placed because of this comms
+  FAILED
+}
