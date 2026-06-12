@@ -1,23 +1,13 @@
-// packages/db/src/index.ts
-// Re-export the Prisma client as a singleton.
-// Both `api` and `channel-service` import from "@xeno/db".
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
 
-import { PrismaClient } from "@prisma/client";
+const app = express();
+const PORT = process.env.PORT ?? 3001;
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+app.use(cors());
+app.use(express.json());
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"],
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
-
-// Re-export all generated types so consumers never import from @prisma/client directly
-export * from "@prisma/client";
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
