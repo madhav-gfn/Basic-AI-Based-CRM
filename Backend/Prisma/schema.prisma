@@ -72,7 +72,7 @@ model Campaign {
   status     CampaignStatus @default(DRAFT)
   createdAt  DateTime       @default(now()) @map("created_at")
   launchedAt DateTime?      @map("launched_at")
-
+  message    String?
   // Relations
   audience       Segment         @relation(fields: [audienceId], references: [id])
   communications Communication[]

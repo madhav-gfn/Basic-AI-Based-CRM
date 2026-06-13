@@ -414,6 +414,7 @@ async function main() {
       audience: "Dormant Customers",
       channel: Channel.EMAIL,
       objective: "Re-engage inactive shoppers with a fashion discount.",
+      message: "Come back and enjoy 20% off on your favorite styles!",
       status: CampaignStatus.COMPLETED,
     },
     {
@@ -421,6 +422,7 @@ async function main() {
       audience: "VIP Customers",
       channel: Channel.WHATSAPP,
       objective: "Launch an exclusive premium collection to top spenders.",
+      message: "Exclusive preview: New premium collection just for you!",
       status: CampaignStatus.COMPLETED,
     },
     {
@@ -428,6 +430,7 @@ async function main() {
       audience: "New Customers",
       channel: Channel.SMS,
       objective: "Drive first repeat purchase with a new arrivals offer.",
+      message: "Welcome! Get 15% off on new arrivals with code NEW15",
       status: CampaignStatus.COMPLETED,
     },
     {
@@ -435,6 +438,7 @@ async function main() {
       audience: "Delhi Shoppers",
       channel: Channel.RCS,
       objective: "Promote city-specific fashion styling content.",
+      message: "Delhi Style Week: Explore trending looks curated for you!",
       status: CampaignStatus.COMPLETED,
     },
     {
@@ -442,6 +446,7 @@ async function main() {
       audience: "Footwear Enthusiasts",
       channel: Channel.EMAIL,
       objective: "Promote a footwear collection weekend sale.",
+      message: "Weekend Special: Up to 40% off on all footwear!",
       status: CampaignStatus.COMPLETED,
     },
     {
@@ -449,6 +454,7 @@ async function main() {
       audience: "Beauty Buyers",
       channel: Channel.WHATSAPP,
       objective: "Cross-sell beauty products to fashion shoppers.",
+      message: "Complete your look! Buy 2 beauty products, get 1 free.",
       status: CampaignStatus.COMPLETED,
     },
     {
@@ -456,6 +462,7 @@ async function main() {
       audience: "Fashion Heavy Spenders",
       channel: Channel.WHATSAPP,
       objective: "Offer early access to premium apparel drops.",
+      message: "Early access: Shop the new premium collection before anyone else!",
       status: CampaignStatus.RUNNING,
     },
     {
@@ -463,6 +470,7 @@ async function main() {
       audience: "Mumbai + Pune Buyers",
       channel: Channel.SMS,
       objective: "Push limited-time offers to nearby shoppers.",
+      message: "Flash Sale Alert! 24 hours only - Up to 50% off!",
       status: CampaignStatus.SCHEDULED,
     },
     {
@@ -470,6 +478,7 @@ async function main() {
       audience: "Discount Hunters",
       channel: Channel.EMAIL,
       objective: "Target value-sensitive shoppers with a time-bound coupon.",
+      message: "Your exclusive code: SAVE30 - Valid for 48 hours only!",
       status: CampaignStatus.SCHEDULED,
     },
     {
@@ -477,6 +486,7 @@ async function main() {
       audience: "High Frequency Buyers",
       channel: Channel.WHATSAPP,
       objective: "Reward frequent buyers with a loyalty-style incentive.",
+      message: "Thank you for being a loyal shopper! Here's 500 reward points.",
       status: CampaignStatus.COMPLETED,
     },
     {
@@ -484,6 +494,7 @@ async function main() {
       audience: "Apparel Buyers",
       channel: Channel.RCS,
       objective: "Promote monsoon-ready fashion essentials.",
+      message: "Monsoon essentials are here! Stay stylish this season.",
       status: CampaignStatus.DRAFT,
     },
     {
@@ -491,6 +502,7 @@ async function main() {
       audience: "Fashion Heavy Spenders",
       channel: Channel.EMAIL,
       objective: "Encourage repeat apparel purchases with style recommendations.",
+      message: "Based on your style, we think you'll love these new arrivals!",
       status: CampaignStatus.COMPLETED,
     },
   ];
@@ -534,6 +546,7 @@ async function main() {
           audienceId: audienceSegment.id,
           channel: campaignSeed.channel,
           objective: campaignSeed.objective,
+          message: campaignSeed.message,
           status: campaignSeed.status,
           launchedAt,
         },
