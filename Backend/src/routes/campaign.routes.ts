@@ -5,6 +5,7 @@ import {
   getCampaignById,
   updateCampaignStatus,
 } from "../controllers/campaign.controller";
+import { AnalyticsController } from "../controllers/AnalyticsController";
 
 const router = Router();
 
@@ -13,6 +14,9 @@ router.post("/draft", draftCampaign);
 
 // GET /api/campaigns
 router.get("/", getCampaigns);
+
+// GET /api/campaigns/:id/analytics
+router.get("/:id/analytics", AnalyticsController.getAnalytics);
 
 // GET /api/campaigns/:id
 router.get("/:id", getCampaignById);

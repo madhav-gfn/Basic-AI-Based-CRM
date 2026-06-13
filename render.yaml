@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: moda-crm-backend
+    env: node
+    rootDir: Backend
+    buildCommand: "npm install && npx prisma generate && npm run build"
+    startCommand: "npm start"
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
+    autoDeploy: true
