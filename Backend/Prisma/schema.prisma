@@ -72,6 +72,7 @@ model Campaign {
   status     CampaignStatus @default(DRAFT)
   createdAt  DateTime       @default(now()) @map("created_at")
   launchedAt DateTime?      @map("launched_at")
+  scheduledAt DateTime?      @map("scheduled_at")
   message    String?
   // Relations
   audience       Segment         @relation(fields: [audienceId], references: [id])
@@ -84,19 +85,21 @@ model Campaign {
 // COMMUNICATION  (one per customer per campaign)
 // ─────────────────────────────────────────────
 model Communication {
-  id         String              @id @default(uuid())
-  campaignId String              @map("campaign_id")
-  customerId String              @map("customer_id")
-  channel    Channel
-  message    String              // rendered personalised message
-  status     CommunicationStatus @default(PENDING)
-  createdAt  DateTime            @default(now()) @map("created_at")
+  id          String              @id @default(uuid())
+  campaignId  String              @map("campaign_id")
+  customerId  String              @map("customer_id")
+  channel     Channel
+  message     String              // rendered personalised message
+  status      CommunicationStatus @default(PENDING)
+  scheduledAt DateTime?
+  createdAt   DateTime            @default(now()) @map("created_at")
 
   // Relations
   campaign Campaign             @relation(fields: [campaignId], references: [id])
   customer Customer             @relation(fields: [customerId], references: [id])
   events   CommunicationEvent[]
 
+  @@unique([campaignId, customerId])
   @@map("communications")
 }
 

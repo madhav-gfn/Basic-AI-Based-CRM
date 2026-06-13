@@ -153,10 +153,15 @@ Respond with ONLY valid JSON in this exact format:
       },
     });
 
-    const raw = response.text.trim();
+    const raw = response.text;
+    if (!raw) {
+      throw new Error("AI response did not include text.");
+    }
+
+    const responseText = raw.trim();
     
     // Parse JSON manually since we can't use responseSchema with this model
-    const parsed = JSON.parse(raw) as CampaignDraft;
+    const parsed = JSON.parse(responseText) as CampaignDraft;
     
     return parsed;
   }

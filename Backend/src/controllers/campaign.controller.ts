@@ -42,14 +42,21 @@ export async function getCampaignById(req: Request, res: Response, next: NextFun
 
 export async function updateCampaignStatus(req: Request, res: Response, next: NextFunction) {
   try {
-    const { status } = req.body as { status: string };
+    const { status, scheduledAt } = req.body as {
+      status: string;
+      scheduledAt?: string | null;
+    };
 
     if (!status) {
       sendError(res, "status is required", 400);
       return;
     }
 
-    const campaign = await campaignService.updateCampaignStatus(req.params.id, status);
+    const campaign = await campaignService.updateCampaignStatus(
+      req.params.id,
+      status,
+      scheduledAt
+    );
     sendSuccess(res, campaign, "Campaign status updated");
   } catch (error) {
     next(error);

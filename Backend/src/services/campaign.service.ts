@@ -163,7 +163,7 @@ export class CampaignService {
         // Store AI-generated copy on the campaign for the marketer to review
         // before it is fanned out to individual Communication records.
         message,
-      } as Prisma.CampaignCreateInput,
+      },
     });
 
     return { campaign, audienceMetrics, aiExplanation: explanation };
@@ -215,7 +215,8 @@ export class CampaignService {
    */
   async updateCampaignStatus(
     id: string,
-    status: string
+    status: string,
+    scheduledAt?: string | null
   ): Promise<Campaign> {
     const newStatus = CampaignStatus[status as keyof typeof CampaignStatus];
 
@@ -236,6 +237,18 @@ export class CampaignService {
       throw new Error(`Campaign not found: "${id}".`);
     }
 
+    let parsedScheduledAt: Date | null | undefined;
+    if (scheduledAt !== undefined) {
+      parsedScheduledAt = scheduledAt === null ? null : new Date(scheduledAt);
+
+      if (
+        parsedScheduledAt !== null &&
+        Number.isNaN(parsedScheduledAt.getTime())
+      ) {
+        throw new Error(`Invalid scheduledAt value: "${scheduledAt}".`);
+      }
+    }
+
     return prisma.campaign.update({
       where: { id },
       data: {
@@ -244,6 +257,10 @@ export class CampaignService {
         ...(newStatus === CampaignStatus.RUNNING &&
           existing.status !== CampaignStatus.RUNNING && {
             launchedAt: new Date(),
+          }),
+        ...(newStatus === CampaignStatus.SCHEDULED &&
+          scheduledAt !== undefined && {
+            scheduledAt: parsedScheduledAt,
           }),
       },
     });

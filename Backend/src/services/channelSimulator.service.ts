@@ -1,11 +1,14 @@
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
+import { prisma } from "../config/database";
+import { Channel } from "@prisma/client";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SendPayload {
+  communication_id?: string;
   customer_id: string;
   campaign_id: string;
   channel: string;
@@ -66,6 +69,11 @@ const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 /** Promise-based delay. */
 const delay = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 
+function parseChannel(raw: string): Channel | null {
+  const channel = Channel[raw.toUpperCase() as keyof typeof Channel];
+  return channel ?? null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Webhook dispatcher
 // Fires each event in the chain with a small inter-event gap so the CRM
@@ -101,17 +109,17 @@ async function dispatchEventChain(
       if (!res.ok) {
         console.error(
           `[Channel] Webhook delivery failed for ${eventType} ` +
-          `(comm: ${communicationId}): HTTP ${res.status}`
+          `(comm: ${communicationId}): HTTP ${res.status} -> ${crmUrl}`
         );
       } else {
         console.log(
-          `[Channel] ✓ Fired ${eventType} for comm ${communicationId}`
+          `[Channel] ✓ Fired ${eventType} for comm ${communicationId} -> ${crmUrl}`
         );
       }
     } catch (err) {
       // Network error — log and continue (fire-and-forget; no retry in mock)
       console.error(
-        `[Channel] Network error dispatching ${eventType}:`,
+        `[Channel] Network error dispatching ${eventType} to ${crmUrl}:`,
         (err as Error).message
       );
     }
@@ -138,8 +146,8 @@ export const simulatorRouter = Router();
  * 4. Schedules async event dispatch via setTimeout so the response is
  *    guaranteed to leave before any webhook fires.
  */
-simulatorRouter.post("/send", (req: Request, res: Response): void => {
-  const { customer_id, campaign_id, channel, message } =
+simulatorRouter.post("/send", async (req: Request, res: Response): Promise<void> => {
+  const { communication_id, customer_id, campaign_id, channel, message } =
     req.body as Partial<SendPayload>;
 
   if (!customer_id || !campaign_id || !channel || !message) {
@@ -149,8 +157,44 @@ simulatorRouter.post("/send", (req: Request, res: Response): void => {
     return;
   }
 
-  const communicationId = randomUUID();
+  const parsedChannel = parseChannel(channel);
+  if (!parsedChannel) {
+    res.status(400).json({
+      error: `Invalid channel: ${channel}.`,
+    });
+    return;
+  }
+
+  const communicationId = communication_id ?? randomUUID();
   const outcome = pick(OUTCOME_POOL);
+
+  // Best-effort: create a Communication record so webhooks have a target.
+  // If campaign_id or customer_id are invalid the create will fail and
+  // we log the error but continue — this keeps the simulator forgiving
+  // for manual testing while ensuring the happy path works.
+  try {
+    await prisma.communication.upsert({
+      where: { id: communicationId },
+      update: {
+        channel: parsedChannel,
+        message,
+      },
+      create: {
+        id: communicationId,
+        campaignId: campaign_id,
+        customerId: customer_id,
+        channel: parsedChannel,
+        message,
+      },
+    });
+
+    console.log(`[Channel] Accepted communication ${communicationId}`);
+  } catch (err) {
+    console.error(
+      `[Channel] Failed to ensure communication ${communicationId}:`,
+      (err as Error).message
+    );
+  }
 
   // ── Respond immediately (202 Accepted) ───────────────────────────────────
   res.status(202).json({

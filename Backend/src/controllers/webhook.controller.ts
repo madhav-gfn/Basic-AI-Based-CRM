@@ -1,24 +1,9 @@
 import { Router, Request, Response } from "express";
-import { webhookService, type WebhookPayload } from "../services/WebhookService";
+import { webhookService, type WebhookPayload } from "../services/webhook.service";
 
 const router = Router();
 
-/**
- * POST /api/webhooks/receipt
- *
- * Receives delivery and engagement events from the Channel Simulator.
- * Delegates all DB logic to WebhookService; this controller only handles
- * HTTP concerns (parsing, status codes, response shaping).
- *
- * Response map:
- *   processed (status updated)     → 200 { outcome: "processed", statusUpdated: true }
- *   processed (rank guard blocked) → 200 { outcome: "processed", statusUpdated: false }
- *   duplicate event                → 200 { outcome: "duplicate" }   (idempotent — not an error)
- *   invalid event_type             → 400
- *   communication not found        → 404
- *   unexpected error               → 500
- */
-router.post("/receipt", async (req: Request, res: Response): Promise<void> => {
+async function handleReceipt(req: Request, res: Response): Promise<void> {
   const payload = req.body as Partial<WebhookPayload>;
 
   // ── Basic payload validation ────────────────────────────────────────────────
@@ -71,6 +56,25 @@ router.post("/receipt", async (req: Request, res: Response): Promise<void> => {
     default:
       res.status(500).json({ success: false, error: "Unhandled outcome." });
   }
-});
+}
+
+/**
+ * POST /api/webhooks/receipt
+ * POST /api/receipts
+ *
+ * Receives delivery and engagement events from the Channel Simulator.
+ * Delegates all DB logic to WebhookService; this controller only handles
+ * HTTP concerns (parsing, status codes, response shaping).
+ *
+ * Response map:
+ *   processed (status updated)     → 200 { outcome: "processed", statusUpdated: true }
+ *   processed (rank guard blocked) → 200 { outcome: "processed", statusUpdated: false }
+ *   duplicate event                → 200 { outcome: "duplicate" }   (idempotent — not an error)
+ *   invalid event_type             → 400
+ *   communication not found        → 404
+ *   unexpected error               → 500
+ */
+router.post("/receipt", handleReceipt);
+router.post("/receipts", handleReceipt);
 
 export default router;

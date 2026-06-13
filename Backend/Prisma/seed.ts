@@ -66,6 +66,10 @@ function daysAgo(days: number) {
   return new Date(Date.now() - days * 86_400_000);
 }
 
+function minutesFromNow(minutes: number) {
+  return new Date(Date.now() + minutes * 60_000);
+}
+
 function clampDateWithin(daysMinAgo: number, daysMaxAgo: number) {
   return randomDate(daysMaxAgo, daysMinAgo);
 }
@@ -535,9 +539,14 @@ async function main() {
       const launchedAt =
         campaignSeed.status === CampaignStatus.COMPLETED || campaignSeed.status === CampaignStatus.RUNNING
           ? randomDate(45, 1)
-          : campaignSeed.status === CampaignStatus.SCHEDULED
-            ? randomDate(2, 0)
-            : null;
+          : null;
+
+      const scheduledAt =
+        campaignSeed.status === CampaignStatus.SCHEDULED
+          ? campaignSeed.name === "Mumbai-Pune Flash Sale"
+            ? minutesFromNow(-5)
+            : minutesFromNow(30)
+          : null;
 
       const campaign = await prisma.campaign.create({
         data: {
@@ -549,10 +558,14 @@ async function main() {
           message: campaignSeed.message,
           status: campaignSeed.status,
           launchedAt,
+          scheduledAt,
         },
       });
 
-      if (campaignSeed.status !== CampaignStatus.DRAFT) {
+      if (
+        campaignSeed.status === CampaignStatus.COMPLETED ||
+        campaignSeed.status === CampaignStatus.RUNNING
+      ) {
         campaignIdsForExecution.add(campaign.id);
       }
 

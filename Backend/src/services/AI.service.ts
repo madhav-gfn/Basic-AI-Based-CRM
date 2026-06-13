@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, type Schema } from "@google/genai";
-import type { SegmentFilters } from "./SegmentService";
+import type { SegmentFilters } from "./segment.service";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Return type
@@ -132,7 +132,12 @@ export class AIService {
       },
     });
 
-    const parsed = JSON.parse(response.text) as SegmentFilters & {
+    const raw = response.text;
+    if (!raw) {
+      throw new Error("AI response did not include text.");
+    }
+
+    const parsed = JSON.parse(raw) as SegmentFilters & {
       explanation: string;
     };
 

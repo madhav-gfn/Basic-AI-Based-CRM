@@ -1,0 +1,192 @@
+{
+  "info": {
+    "name": "Basic AI CRM",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "customerId",
+      "value": "81c1b2e0-7bbe-4c87-8909-ae0108eea4df"
+    },
+    {
+      "key": "segmentId",
+      "value": "0f0c110c-2814-4920-8eca-201ebc03c384"
+    },
+    {
+      "key": "campaignId",
+      "value": "3c30b574-5bde-42d7-8d58-0109fa4ccb03"
+    },
+    {
+      "key": "communicationId",
+      "value": "bbb10979-6125-4cdf-b79e-0e6420338b69"
+    }
+  ],
+  "item": [
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Get Top Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/customers/top?limit=10"
+          }
+        },
+        {
+          "name": "Get Customer Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/customers/{{customerId}}"
+          }
+        },
+        {
+          "name": "Get Customer Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/customers/{{customerId}}/metrics"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Segments",
+      "item": [
+        {
+          "name": "Get All Segments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/segments"
+          }
+        },
+        {
+          "name": "Evaluate Segment",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"city\": \"Delhi\",\n  \"minLifetimeSpend\": 5000\n}"
+            },
+            "url": "{{baseUrl}}/api/segments/evaluate"
+          }
+        },
+        {
+          "name": "Create Segment",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"High Value Delhi Buyers\",\n  \"filters\": {\n    \"city\": \"Delhi\",\n    \"minLifetimeSpend\": 10000\n  },\n  \"createdBy\": \"admin\"\n}"
+            },
+            "url": "{{baseUrl}}/api/segments"
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "item": [
+        {
+          "name": "AI Segment Suggest",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Women in Bangalore who bought beauty products in the last 60 days\"\n}"
+            },
+            "url": "{{baseUrl}}/api/ai/segment-suggest"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaigns",
+      "item": [
+        {
+          "name": "Get All Campaigns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/campaigns"
+          }
+        },
+        {
+          "name": "Get Campaign By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/campaigns/{{campaignId}}"
+          }
+        },
+        {
+          "name": "Draft AI Campaign",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"VIP Re-engagement\",\n  \"objective\": \"Drive repeat purchases from high-value customers with exclusive offers\",\n  \"audienceId\": \"{{segmentId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/campaigns/draft"
+          }
+        },
+        {
+          "name": "Update Campaign Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"RUNNING\"\n}"
+            },
+            "url": "{{baseUrl}}/api/campaigns/{{campaignId}}/status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Channel Simulator",
+      "item": [
+        {
+          "name": "Simulate Send Message",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\",\n  \"campaign_id\": \"{{campaignId}}\",\n  \"channel\": \"EMAIL\",\n  \"message\": \"Hi {name}, check out our exclusive offer!\"\n}"
+            },
+            "url": "{{baseUrl}}/simulator/send"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Receive Event (Manual Test)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"communication_id\": \"{{communicationId}}\",\n  \"event_type\": \"DELIVERED\",\n  \"timestamp\": \"2024-01-15T10:30:00Z\"\n}"
+            },
+            "url": "{{baseUrl}}/api/webhooks/receipt"
+          }
+        }
+      ]
+    }
+  ]
+}
