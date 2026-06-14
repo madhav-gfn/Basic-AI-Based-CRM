@@ -4,7 +4,7 @@ services:
     name: moda-crm-backend
     env: node
     rootDir: Backend
-    buildCommand: "npm install && npx prisma generate --schema=./Prisma/schema.prisma && npm run build"
+    buildCommand: "npm cache clean --force && npm ci && npx prisma generate --schema=./Prisma/schema.prisma && npm run build"
     startCommand: "npm start"
     envVars:
       - key: DATABASE_URL
@@ -22,7 +22,7 @@ services:
     name: moda-channel-service
     env: node
     rootDir: Channel
-    buildCommand: "npm install && npm run build"
+    buildCommand: "npm cache clean --force && npm ci && npm run build"
     startCommand: "npm start"
     envVars:
       - key: CRM_RECEIPT_URL
