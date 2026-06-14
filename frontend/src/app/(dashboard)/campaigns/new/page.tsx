@@ -9,7 +9,7 @@ import {
   draftCampaign,
   updateCampaignStatus,
   type DraftCampaignResponse,
-} from '../../../lib/api';
+} from '@/lib/api';
 
 type Step = 'input' | 'segment-review' | 'campaign-draft' | 'done';
 

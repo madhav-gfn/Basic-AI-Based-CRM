@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { getCampaigns, type Campaign } from '../../lib/api';
+import { getCampaigns, type Campaign } from '@/lib/api';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   COMPLETED: { bg: 'var(--color-accent-green-soft)', text: 'var(--color-accent-green)' },

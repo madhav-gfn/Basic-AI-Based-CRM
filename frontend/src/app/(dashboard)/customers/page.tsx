@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { getCustomers, type Customer } from '../../lib/api';
+import { getCustomers, type Customer } from '@/lib/api';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getCampaignAnalytics, type CampaignMetrics, type CampaignInsights } from '../../../lib/api';
+import { getCampaignAnalytics, type CampaignMetrics, type CampaignInsights } from '@/lib/api';
 
 export default function CampaignDashboardPage() {
   const params = useParams();

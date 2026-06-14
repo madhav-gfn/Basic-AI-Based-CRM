@@ -2,12 +2,12 @@
 
 :root {
   /* Pastel palette */
-  --color-bg: #f8f9fc;
-  --color-sidebar: #ffffff;
-  --color-card: #ffffff;
-  --color-primary: #7c6ef0;
-  --color-primary-soft: #ede9fe;
-  --color-primary-hover: #6c5ce7;
+  --color-bg: #F7F1DE;
+  --color-sidebar: #F7F1DE;
+  --color-card: #FFFFFF;
+  --color-primary: #B0BA99;
+  --color-primary-soft: #e2e5d9;
+  --color-primary-hover: #9ca686;
   --color-accent-green: #6bcb77;
   --color-accent-green-soft: #e8f8ee;
   --color-accent-blue: #6ec6ff;
@@ -16,9 +16,9 @@
   --color-accent-rose-soft: #fde8ef;
   --color-accent-amber: #f0b86e;
   --color-accent-amber-soft: #fef3e2;
-  --color-text: #2d3142;
-  --color-text-muted: #8e94a8;
-  --color-border: #e8eaf0;
+  --color-text: #4E220F;
+  --color-text-muted: #9D6638;
+  --color-border: #d8dccb;
 }
 
 body {

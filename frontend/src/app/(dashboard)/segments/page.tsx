@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { getSegments, type Segment } from '../../lib/api';
+import { getSegments, type Segment } from '@/lib/api';
 
 export default function SegmentsPage() {
   const [segments, setSegments] = useState<Segment[]>([]);

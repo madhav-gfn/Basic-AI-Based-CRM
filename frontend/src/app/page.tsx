@@ -1,148 +1,117 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { getDashboardStats, type Campaign } from '../lib/api';
+import Image from 'next/image';
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  COMPLETED: { bg: 'var(--color-accent-green-soft)', text: 'var(--color-accent-green)' },
-  RUNNING: { bg: 'var(--color-accent-blue-soft)', text: 'var(--color-accent-blue)' },
-  SCHEDULED: { bg: 'var(--color-accent-amber-soft)', text: 'var(--color-accent-amber)' },
-  DRAFT: { bg: '#f3f4f6', text: 'var(--color-text-muted)' },
-  FAILED: { bg: 'var(--color-accent-rose-soft)', text: 'var(--color-accent-rose)' },
-};
-
-const CHANNEL_ICONS: Record<string, string> = {
-  WHATSAPP: '💬',
-  EMAIL: '✉️',
-  SMS: '📱',
-  RCS: '🔗',
-};
-
-export default function DashboardPage() {
-  const [stats, setStats] = useState<{
-    totalCustomers: number;
-    totalOrders: number;
-    totalCampaigns: number;
-    totalSegments: number;
-    totalRevenue: number;
-    recentCampaigns: Campaign[];
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getDashboardStats()
-      .then((res) => setStats(res.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-3 border-[var(--color-primary-soft)] border-t-[var(--color-primary)] rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!stats) return <p className="text-[var(--color-text-muted)]">Failed to load dashboard.</p>;
-
-  const statCards = [
-    { label: 'Total Customers', value: stats.totalCustomers.toLocaleString(), color: 'var(--color-primary)', bg: 'var(--color-primary-soft)' },
-    { label: 'Total Orders', value: stats.totalOrders.toLocaleString(), color: 'var(--color-accent-green)', bg: 'var(--color-accent-green-soft)' },
-    { label: 'Revenue', value: `₹${(stats.totalRevenue / 100000).toFixed(1)}L`, color: 'var(--color-accent-amber)', bg: 'var(--color-accent-amber-soft)' },
-    { label: 'Campaigns', value: stats.totalCampaigns.toString(), color: 'var(--color-accent-blue)', bg: 'var(--color-accent-blue-soft)' },
-    { label: 'Segments', value: stats.totalSegments.toString(), color: 'var(--color-accent-rose)', bg: 'var(--color-accent-rose-soft)' },
-  ];
-
+export default function LandingPage() {
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
-            Overview of your CRM performance and recent activity.
-          </p>
-        </div>
-        <Link
-          href="/campaigns/new"
-          className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all shadow-sm hover:shadow-md"
-          style={{ background: 'var(--color-primary)' }}
+    <div className="min-h-screen flex flex-col items-center justify-center p-8 overflow-hidden relative">
+      {/* Decorative background shapes */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 0.5, scale: 1 }}
+        transition={{ duration: 1.5, ease: "easeOut" }}
+        className="absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl"
+        style={{ background: 'var(--color-primary-soft)' }}
+      />
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 0.3, scale: 1 }}
+        transition={{ duration: 1.5, delay: 0.2, ease: "easeOut" }}
+        className="absolute bottom-[-10%] right-[-10%] w-[30rem] h-[30rem] rounded-full mix-blend-multiply filter blur-3xl"
+        style={{ background: 'var(--color-accent-amber-soft)' }}
+      />
+
+      <div className="z-10 max-w-4xl mx-auto text-center">
+        {/* Animated Logo */}
+        <motion.div
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.8, type: "spring", bounce: 0.4 }}
+          className="flex justify-center mb-8"
         >
-          + New Campaign
-        </Link>
-      </div>
+          <div className="relative w-32 h-32 md:w-48 md:h-48 rounded-2xl shadow-xl overflow-hidden bg-white p-2">
+            <Image 
+              src="/main_logo.png" 
+              alt="Moda CRM Logo" 
+              fill
+              sizes="(max-width: 768px) 128px, 192px"
+              className="object-contain p-2"
+              priority
+            />
+          </div>
+        </motion.div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {statCards.map((card, i) => (
-          <motion.div
-            key={card.label}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="bg-white rounded-xl border border-[var(--color-border)] p-5 hover:shadow-sm transition-shadow"
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center mb-3 text-sm font-bold"
-              style={{ background: card.bg, color: card.color }}
+        {/* Hero Copy */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6" style={{ color: 'var(--color-text)' }}>
+            Moda CRM
+          </h1>
+          <p className="text-xl md:text-2xl font-medium max-w-2xl mx-auto leading-relaxed mb-10" style={{ color: 'var(--color-text-muted)' }}>
+            AI-Native D2C Intelligence platform for reaching and engaging your shoppers across WhatsApp, SMS, Email, and RCS.
+          </p>
+        </motion.div>
+
+        {/* Feature Pills */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+          className="flex flex-wrap justify-center gap-4 mb-12"
+        >
+          {[
+            { icon: "⚡", text: "Omnichannel Campaigns" },
+            { icon: "🧠", text: "AI-Powered Segmentation" },
+            { icon: "📊", text: "Real-time Analytics" }
+          ].map((feature, i) => (
+            <motion.div 
+              key={i}
+              whileHover={{ scale: 1.05, y: -2 }}
+              className="px-5 py-2.5 rounded-full border border-[var(--color-border)] bg-white/50 backdrop-blur-sm shadow-sm flex items-center gap-2"
+              style={{ color: 'var(--color-text)' }}
             >
-              {card.value.charAt(0) === '₹' ? '₹' : '#'}
-            </div>
-            <p className="text-2xl font-bold">{card.value}</p>
-            <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-text-muted)' }}>
-              {card.label}
-            </p>
-          </motion.div>
-        ))}
+              <span className="text-lg">{feature.icon}</span>
+              <span className="text-sm font-bold tracking-wide">{feature.text}</span>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Call to Action */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.7 }}
+        >
+          <Link href="/dashboard">
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-8 py-4 rounded-xl text-lg font-bold text-white shadow-lg shadow-[var(--color-primary-soft)] transition-all flex items-center gap-3 mx-auto"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              Go to Dashboard
+              <span className="text-xl leading-none">→</span>
+            </motion.button>
+          </Link>
+        </motion.div>
       </div>
 
-      {/* Recent Campaigns */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-white rounded-xl border border-[var(--color-border)] overflow-hidden"
+      {/* Footer attribution */}
+      <motion.p 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1 }}
+        className="absolute bottom-8 text-xs font-semibold tracking-widest uppercase"
+        style={{ color: 'var(--color-text-muted)' }}
       >
-        <div className="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Recent Campaigns</h2>
-          <Link href="/campaigns" className="text-xs font-medium" style={{ color: 'var(--color-primary)' }}>
-            View all →
-          </Link>
-        </div>
-        <div className="divide-y divide-[var(--color-border)]">
-          {stats.recentCampaigns.map((campaign) => {
-            const statusStyle = STATUS_COLORS[campaign.status] || STATUS_COLORS.DRAFT;
-            return (
-              <Link
-                key={campaign.id}
-                href={`/campaigns/${campaign.id}`}
-                className="flex items-center px-6 py-4 hover:bg-gray-50/50 transition-colors"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{campaign.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                    {campaign.audience?.name ?? 'Unknown audience'} · {CHANNEL_ICONS[campaign.channel] || ''} {campaign.channel}
-                  </p>
-                </div>
-                <span
-                  className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0"
-                  style={{ background: statusStyle.bg, color: statusStyle.text }}
-                >
-                  {campaign.status}
-                </span>
-              </Link>
-            );
-          })}
-          {stats.recentCampaigns.length === 0 && (
-            <div className="px-6 py-8 text-center">
-              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>No campaigns yet.</p>
-            </div>
-          )}
-        </div>
-      </motion.div>
+        Xeno Engineering Assignment • 2026
+      </motion.p>
     </div>
   );
 }

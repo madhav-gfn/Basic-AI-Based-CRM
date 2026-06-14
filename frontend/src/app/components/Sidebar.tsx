@@ -3,27 +3,32 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import Image from 'next/image';
+
 const NAV_ITEMS = [
-  { href: '/', label: 'Dashboard', icon: '◆' },
-  { href: '/campaigns', label: 'Campaigns', icon: '◈' },
-  { href: '/campaigns/new', label: 'Create Campaign', icon: '✦' },
-  { href: '/segments', label: 'Segments', icon: '◇' },
-  { href: '/customers', label: 'Customers', icon: '○' },
+  { href: '/dashboard', label: 'Dashboard', icon: '/dashboard.png' },
+  { href: '/campaigns', label: 'Campaigns', icon: '/campaign.png' },
+  { href: '/campaigns/new', label: 'Create Campaign', icon: '/Create_campaign.png' },
+  { href: '/segments', label: 'Segments', icon: '/segment.png' },
+  { href: '/customers', label: 'Customers', icon: '/customers.png' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-[var(--color-border)] flex flex-col z-50">
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-[var(--color-sidebar)] border-r border-[var(--color-border)] flex flex-col z-50">
       {/* Brand */}
-      <div className="px-6 py-6 border-b border-[var(--color-border)]">
-        <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-primary)' }}>
-          Moda CRM
-        </h1>
-        <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-          AI-Native D2C Intelligence
-        </p>
+      <div className="px-6 py-6 border-b border-[var(--color-border)] flex items-center gap-3">
+        <Image src="/main_logo.png" alt="Moda CRM Logo" width={40} height={40} className="rounded" />
+        <div>
+          <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
+            Moda CRM
+          </h1>
+          <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+            AI-Native D2C Intelligence
+          </p>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -44,8 +49,8 @@ export default function Sidebar() {
                 }
               `}
             >
-              <span className="text-base">{item.icon}</span>
-              {item.label}
+              <Image src={item.icon} alt={item.label} width={20} height={20} className={isActive ? "" : "opacity-60"} />
+              <span className="flex-1">{item.label}</span>
             </Link>
           );
         })}
