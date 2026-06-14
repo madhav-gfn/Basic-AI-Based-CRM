@@ -10,7 +10,7 @@ import { randomUUID } from "crypto";
 const PORT = process.env.PORT ?? 3002;
 const CRM_RECEIPT_URL =
   process.env.CRM_RECEIPT_URL?.trim().replace(/\/+$/, "") ??
-  "http://localhost:3001/api/webhooks/receipt";
+  "http://localhost:3004/api/webhooks/receipt";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

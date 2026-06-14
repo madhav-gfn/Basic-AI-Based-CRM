@@ -6,6 +6,10 @@
   "variable": [
     {
       "key": "baseUrl",
+      "value": "http://localhost:3004"
+    },
+    {
+      "key": "channelUrl",
       "value": "http://localhost:3001"
     },
     {
@@ -22,7 +26,7 @@
     },
     {
       "key": "communicationId",
-      "value": "bbb10979-6125-4cdf-b79e-0e6420338b69"
+      "value":"4f0e72a1-44aa-44d0-a204-f884fb535fbf"
     }
   ],
   "item": [
@@ -159,14 +163,28 @@
       "item": [
         {
           "name": "Simulate Send Message",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('communicationId')) {",
+                  "  function uuidv4() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); }",
+                  "  pm.variables.set('communicationId', uuidv4());",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customer_id\": \"{{customerId}}\",\n  \"campaign_id\": \"{{campaignId}}\",\n  \"channel\": \"EMAIL\",\n  \"message\": \"Hi {name}, check out our exclusive offer!\"\n}"
+              "raw": "{\n  \"communication_id\": \"{{communicationId}}\",\n  \"customer_id\": \"{{customerId}}\",\n  \"campaign_id\": \"{{campaignId}}\",\n  \"channel\": \"EMAIL\",\n  \"message\": \"Hi {name}, check out our exclusive offer!\"\n}"
             },
-            "url": "{{baseUrl}}/simulator/send"
+            "url": "{{channelUrl}}/simulator/send"
           }
         }
       ]
@@ -176,6 +194,28 @@
       "item": [
         {
           "name": "Receive Event (Manual Test)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('communicationId')) {",
+                  "  function uuidv4() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); }",
+                  "  pm.variables.set('communicationId', uuidv4());",
+                  "}",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.get('channelUrl') + '/simulator/send',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ communication_id: pm.variables.get('communicationId'), customer_id: pm.variables.get('customerId'), campaign_id: pm.variables.get('campaignId'), channel: 'EMAIL', message: 'Ensure communication exists' }) }",
+                  "}, function (err, res) {",
+                  "  if (err) console.log('upsert error', err); else console.log('upsert status', res && res.status);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],

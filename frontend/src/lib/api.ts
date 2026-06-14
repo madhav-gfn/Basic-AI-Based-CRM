@@ -1,8 +1,22 @@
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-const API_ROOT = rawApiUrl
-  ? rawApiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "")
-  : 'http://localhost:3001';
-const API_URL = `${API_ROOT}/api`;
+const browserOrigin =
+  typeof window !== 'undefined' ? window.location.origin : undefined;
+const localBackendHost = 'http://localhost:3004';
+
+const API_URL = rawApiUrl
+  ? rawApiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "") + '/api'
+  : browserOrigin
+  ? browserOrigin.includes('localhost:3000')
+    ? `${localBackendHost}/api`
+    : `${browserOrigin}/api`
+  : `${localBackendHost}/api`;
+
+if (typeof window !== 'undefined' && !rawApiUrl) {
+  console.warn(
+    '[frontend] NEXT_PUBLIC_API_URL is not configured. Using local backend fallback:',
+    API_URL
+  );
+}
 
 function buildApiUrl(path: string) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
