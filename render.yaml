@@ -4,7 +4,7 @@ services:
     name: moda-crm-backend
     env: node
     rootDir: Backend
-    buildCommand: "npm install && npx prisma generate && npm run build"
+    buildCommand: "npm install && npx prisma generate --schema=./Prisma/schema.prisma && npm run build"
     startCommand: "npm start"
     envVars:
       - key: DATABASE_URL
