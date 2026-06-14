@@ -101,7 +101,7 @@ export class WebhookService {
     }
 
     const eventTimestamp = new Date(payload.timestamp);
-    const maxRetries = 3;
+    const maxRetries = 10;
     let attempt = 0;
 
     while (true) {
@@ -192,7 +192,8 @@ export class WebhookService {
           error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === "P2034"
         ) {
-          await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
+          const jitter = Math.floor(Math.random() * 200);
+          await new Promise((resolve) => setTimeout(resolve, (100 * attempt) + jitter));
           continue;
         }
 

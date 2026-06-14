@@ -115,10 +115,7 @@ async function dispatchEventChain(
         });
 
         if (!res.ok) {
-          console.error(
-            `[Channel] Webhook delivery failed for ${eventType} ` +
-            `(comm: ${communicationId}): HTTP ${res.status} -> ${CRM_RECEIPT_URL}`
-          );
+          throw new Error(`HTTP ${res.status} -> ${CRM_RECEIPT_URL}`);
         } else {
           console.log(
             `[Channel] ✓ Fired ${eventType} for comm ${communicationId} -> ${CRM_RECEIPT_URL}`
@@ -196,8 +193,8 @@ app.post("/simulator/send", (req: Request, res: Response): void => {
     accepted_at: new Date().toISOString(),
   });
 
-  // ── Schedule async event chain (2–5 s simulated network delay) ─────────
-  const deliveryDelayMs = randInt(2_000, 5_000);
+  // ── Schedule async event chain (2–10 s simulated network delay) ─────────
+  const deliveryDelayMs = randInt(2_000, 10_000);
 
   setTimeout(() => {
     dispatchEventChain(communication_id, outcome).catch((err) =>

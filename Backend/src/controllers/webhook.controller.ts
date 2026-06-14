@@ -3,58 +3,62 @@ import { webhookService, type WebhookPayload } from "../services/webhook.service
 
 const router = Router();
 
-async function handleReceipt(req: Request, res: Response): Promise<void> {
-  const payload = req.body as Partial<WebhookPayload>;
+async function handleReceipt(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const payload = req.body as Partial<WebhookPayload>;
 
-  // ── Basic payload validation ────────────────────────────────────────────────
-  if (!payload.event_id || !payload.communication_id || !payload.event_type || !payload.timestamp) {
-    res.status(400).json({
-      success: false,
-      error: "Missing required fields: event_id, communication_id, event_type, timestamp.",
-    });
-    return;
-  }
-
-  const result = await webhookService.processReceipt(payload as WebhookPayload);
-
-  switch (result.outcome) {
-    case "processed":
-      res.status(200).json({
-        success: true,
-        outcome: "processed",
-        event_id: result.event.id,
-        status_updated: result.statusUpdated,
-      });
-      break;
-
-    case "duplicate":
-      // Return 200 so the simulator does not retry — duplicates are expected,
-      // not failures. The response signals the event was safely ignored.
-      res.status(200).json({
-        success: true,
-        outcome: "duplicate",
-        message: "Event already processed. Ignored.",
-      });
-      break;
-
-    case "invalid_event_type":
+    // ── Basic payload validation ────────────────────────────────────────────────
+    if (!payload.event_id || !payload.communication_id || !payload.event_type || !payload.timestamp) {
       res.status(400).json({
         success: false,
-        outcome: "invalid_event_type",
-        error: `Unknown event_type: "${payload.event_type}".`,
+        error: "Missing required fields: event_id, communication_id, event_type, timestamp.",
       });
-      break;
+      return;
+    }
 
-    case "communication_not_found":
-      res.status(404).json({
-        success: false,
-        outcome: "communication_not_found",
-        error: `No communication found for id: "${payload.communication_id}".`,
-      });
-      break;
+    const result = await webhookService.processReceipt(payload as WebhookPayload);
 
-    default:
-      res.status(500).json({ success: false, error: "Unhandled outcome." });
+    switch (result.outcome) {
+      case "processed":
+        res.status(200).json({
+          success: true,
+          outcome: "processed",
+          event_id: result.event.id,
+          status_updated: result.statusUpdated,
+        });
+        break;
+
+      case "duplicate":
+        // Return 200 so the simulator does not retry — duplicates are expected,
+        // not failures. The response signals the event was safely ignored.
+        res.status(200).json({
+          success: true,
+          outcome: "duplicate",
+          message: "Event already processed. Ignored.",
+        });
+        break;
+
+      case "invalid_event_type":
+        res.status(400).json({
+          success: false,
+          outcome: "invalid_event_type",
+          error: `Unknown event_type: "${payload.event_type}".`,
+        });
+        break;
+
+      case "communication_not_found":
+        res.status(404).json({
+          success: false,
+          outcome: "communication_not_found",
+          error: `No communication found for id: "${payload.communication_id}".`,
+        });
+        break;
+
+      default:
+        res.status(500).json({ success: false, error: "Unhandled outcome." });
+    }
+  } catch (error) {
+    next(error);
   }
 }
 
