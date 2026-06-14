@@ -1,11 +1,19 @@
 import { Router } from "express";
 import {
+  getAllCustomers,
+  getDashboardStats,
   getCustomerProfile,
   getCustomerMetrics,
   getTopCustomers,
 } from "../controllers/customer.controller";
 
 const router = Router();
+
+// GET /api/customers — paginated list
+router.get("/", getAllCustomers);
+
+// GET /api/customers/dashboard — dashboard stats
+router.get("/dashboard", getDashboardStats);
 
 // GET /api/customers/top
 router.get("/top", getTopCustomers);

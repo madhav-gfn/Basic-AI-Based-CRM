@@ -1,4 +1,5 @@
 services:
+  # CRM Backend API
   - type: web
     name: moda-crm-backend
     env: node
@@ -9,6 +10,22 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: CHANNEL_SERVICE_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
+    autoDeploy: true
+
+  # Stubbed Channel Service
+  - type: web
+    name: moda-channel-service
+    env: node
+    rootDir: Channel
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
+    envVars:
+      - key: CRM_RECEIPT_URL
         sync: false
       - key: NODE_ENV
         value: production

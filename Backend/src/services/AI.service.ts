@@ -97,6 +97,8 @@ Rules:
 // AIService
 // ─────────────────────────────────────────────────────────────────────────────
 
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+
 export class AIService {
   private readonly ai: GoogleGenAI;
 
@@ -121,28 +123,34 @@ export class AIService {
       throw new Error("Prompt cannot be empty.");
     }
 
-    const response = await this.ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: userPrompt,
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        responseMimeType: "application/json",
-        responseSchema: SEGMENT_SCHEMA,
-        temperature: 0.1,
-      },
-    });
+    try {
+      const response = await this.ai.models.generateContent({
+        model: DEFAULT_GEMINI_MODEL,
+        contents: userPrompt,
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          responseSchema: SEGMENT_SCHEMA,
+          temperature: 0.1,
+        },
+      });
 
-    const raw = response.text;
-    if (!raw) {
-      throw new Error("AI response did not include text.");
+      const raw = response.text;
+      if (!raw) throw new Error("AI response did not include text.");
+
+      const parsed = JSON.parse(raw) as SegmentFilters & { explanation: string };
+      const { explanation, ...filters } = parsed;
+      return { filters, explanation };
+    } catch (err: any) {
+      if (err.message?.includes("429") || err.status === 429) {
+        console.warn("[AI Service] Quota exceeded. Using mock segment fallback for demo purposes.");
+        return {
+          filters: { minOrderCount: 2, lastPurchaseDaysAgo: 30 },
+          explanation: "(MOCK DUE TO API QUOTA) Targeting active repeat buyers from the last 30 days.",
+        };
+      }
+      throw err;
     }
-
-    const parsed = JSON.parse(raw) as SegmentFilters & {
-      explanation: string;
-    };
-
-    const { explanation, ...filters } = parsed;
-    return { filters, explanation };
   }
 }
 

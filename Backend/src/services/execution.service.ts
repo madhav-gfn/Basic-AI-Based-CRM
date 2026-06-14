@@ -12,7 +12,7 @@ import { segmentService, type SegmentDefinition } from "../services/segment.serv
 
 const CHANNEL_URL =
   process.env.CHANNEL_SERVICE_URL ??
-  `http://localhost:${process.env.PORT ?? 3001}`;
+  "http://localhost:3002";
 
 const CHUNK_SIZE = 50; // communications dispatched per concurrent batch
 

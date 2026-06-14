@@ -1,5 +1,6 @@
 import { prisma } from "../config/database";
 import {
+  Prisma,
   EventType,
   CommunicationStatus,
   type Communication,
@@ -70,6 +71,13 @@ export type ReceiptResult =
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class WebhookService {
+  private isRetryableError(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2034"
+    );
+  }
+
   /**
    * processReceipt
    *
@@ -93,95 +101,104 @@ export class WebhookService {
     }
 
     const eventTimestamp = new Date(payload.timestamp);
+    const maxRetries = 3;
+    let attempt = 0;
 
-    return prisma.$transaction(
-      async (tx) => {
-        // ── Step 2: Idempotency check ────────────────────────────────────────
-        // Primary key: event_id (UUID sent by the channel service).
-        // Fallback composite: communicationId + eventType (catches retries
-        // where the channel service generates a new event_id for the same event).
-        const duplicate = await tx.communicationEvent.findFirst({
-          where: {
-            OR: [
-              // If your schema has an externalEventId field, use it here
-              {
+    while (true) {
+      try {
+        return await prisma.$transaction(
+          async (tx) => {
+            // ── Step 2: Idempotency check ────────────────────────────────────────
+            const duplicate = await tx.communicationEvent.findFirst({
+              where: {
+                OR: [
+                  {
+                    communicationId: payload.communication_id,
+                    eventType,
+                    timestamp: {
+                      gte: new Date(eventTimestamp.getTime() - 10_000),
+                      lte: new Date(eventTimestamp.getTime() + 10_000),
+                    },
+                  },
+                ],
+              },
+            });
+
+            if (duplicate) {
+              return { outcome: "duplicate" as const };
+            }
+
+            // ── Step 3: Load current Communication ──────────────────────────────
+            const communication = await tx.communication.findUnique({
+              where: { id: payload.communication_id },
+              select: { id: true, status: true },
+            });
+
+            if (!communication) {
+              return { outcome: "communication_not_found" as const };
+            }
+
+            // ── Step 4: Insert CommunicationEvent (audit log — always written) ──
+            const loggedEvent = await tx.communicationEvent.create({
+              data: {
                 communicationId: payload.communication_id,
                 eventType,
-                // Window: events within 10s of the same type are likely duplicates
-                timestamp: {
-                  gte: new Date(eventTimestamp.getTime() - 10_000),
-                  lte: new Date(eventTimestamp.getTime() + 10_000),
+                timestamp: eventTimestamp,
+                metadata: {
+                  event_id: payload.event_id,
+                  ...(payload.metadata ?? {}),
                 },
               },
-            ],
-          },
-        });
-
-        if (duplicate) {
-          return { outcome: "duplicate" as const };
-        }
-
-        // ── Step 3: Load current Communication ──────────────────────────────
-        const communication = await tx.communication.findUnique({
-          where: { id: payload.communication_id },
-          select: { id: true, status: true },
-        });
-
-        if (!communication) {
-          return { outcome: "communication_not_found" as const };
-        }
-
-        // ── Step 4: Insert CommunicationEvent (audit log — always written) ──
-        const loggedEvent = await tx.communicationEvent.create({
-          data: {
-            communicationId: payload.communication_id,
-            eventType,
-            timestamp: eventTimestamp,
-            metadata: {
-              event_id: payload.event_id,   // preserve the channel's unique ID
-              ...(payload.metadata ?? {}),
-            },
-          },
-        });
-
-        // ── Step 5: Status transition guard ─────────────────────────────────
-        const newStatus = EVENT_TO_STATUS[eventType];
-        let statusUpdated = false;
-
-        if (newStatus !== undefined) {
-          const currentRank = STATUS_RANK[communication.status];
-          const incomingRank = STATUS_RANK[newStatus];
-
-          if (incomingRank > currentRank) {
-            await tx.communication.update({
-              where: { id: payload.communication_id },
-              data: { status: newStatus },
             });
-            statusUpdated = true;
 
-            console.log(
-              `[Webhook] ${communication.status} → ${newStatus} ` +
-              `(comm: ${payload.communication_id})`
-            );
-          } else {
-            // Out-of-order or duplicate status — log but do not downgrade
-            console.log(
-              `[Webhook] Ignored out-of-order ${eventType} ` +
-              `(current: ${communication.status}, ` +
-              `rank ${currentRank} >= incoming rank ${incomingRank})`
-            );
+            // ── Step 5: Status transition guard ─────────────────────────────────
+            const newStatus = EVENT_TO_STATUS[eventType];
+            let statusUpdated = false;
+
+            if (newStatus !== undefined) {
+              const currentRank = STATUS_RANK[communication.status];
+              const incomingRank = STATUS_RANK[newStatus];
+
+              if (incomingRank > currentRank) {
+                await tx.communication.update({
+                  where: { id: payload.communication_id },
+                  data: { status: newStatus },
+                });
+                statusUpdated = true;
+
+                console.log(
+                  `[Webhook] ${communication.status} → ${newStatus} ` +
+                  `(comm: ${payload.communication_id})`
+                );
+              } else {
+                console.log(
+                  `[Webhook] Ignored out-of-order ${eventType} ` +
+                  `(current: ${communication.status}, ` +
+                  `rank ${currentRank} >= incoming rank ${incomingRank})`
+                );
+              }
+            }
+
+            return { outcome: "processed" as const, event: loggedEvent, statusUpdated };
+          },
+          {
+            isolationLevel: "Serializable",
           }
+        );
+      } catch (error: unknown) {
+        attempt += 1;
+        if (
+          attempt < maxRetries &&
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2034"
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
+          continue;
         }
-        // CONVERTED has no status mapping — event is logged, status unchanged.
 
-        return { outcome: "processed" as const, event: loggedEvent, statusUpdated };
-      },
-      {
-        // Serializable isolation prevents two concurrent CLICKED and OPENED
-        // webhooks from both reading DELIVERED and both trying to write.
-        isolationLevel: "Serializable",
+        throw error;
       }
-    );
+    }
   }
 
   /**

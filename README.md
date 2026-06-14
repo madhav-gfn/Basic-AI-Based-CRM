@@ -1,165 +1,211 @@
-# Basic AI-Based CRM
+# Moda CRM — AI-Native Mini CRM for Reaching Shoppers
 
-I'm building a CRM system with AI capabilities from the ground up. This document tracks what I've built so far, how to run it, and where the project is headed.
+A full-stack, AI-native CRM platform that helps D2C brands **decide who to talk to, what to say, and reach them** across WhatsApp, SMS, Email, and RCS.
 
----
-
-## Dev Log
-
-Started the backend from scratch with Node.js, TypeScript, Express, and Prisma — designed the full PostgreSQL schema with 6 models and wrote a seed script that generates 2000 realistic customers with persona-driven orders, segments, campaigns, and communication event timelines.
-
-Built out the customer domain end to end — repository layer, controller for profile/metrics/top-customers, and CSV ingestion via Multer with bulk inserts using Prisma's `createMany`.
-
-Added a segment builder — a `SegmentService` that translates a `SegmentFilters` object into a live Prisma query, handling direct field filters, relation checks, and aggregation sub-queries via `groupBy + having`. Two endpoints: preview audience count without saving, or evaluate and persist in one call.
+Built for the Xeno Engineering Internship Assignment 2026.
 
 ---
 
-## What I've Built So Far
-
-### Backend (Node.js + TypeScript + Express + Prisma)
-
-I set up the entire backend from scratch — config, database layer, API routes, and data seeding.
-
-#### Database Schema (PostgreSQL via Prisma)
-
-I designed a relational schema with 6 models:
-
-- **Customer** — stores name, email, phone, gender, city, signup date
-- **Order** — linked to a customer, tracks order value, date, and category
-- **Segment** — a named audience group with a JSON rule definition (e.g. city = Delhi, totalSpend >= 5000)
-- **Campaign** — a marketing campaign targeting a segment via a specific channel (EMAIL, SMS, WHATSAPP, RCS)
-- **Communication** — one record per customer per campaign, holds the personalised message and delivery status
-- **CommunicationEvent** — lifecycle events per communication (SENT → DELIVERED → OPENED → READ → CLICKED → CONVERTED)
-
-#### Seed Data
-
-I wrote a comprehensive seed script (`Prisma/seed.ts`) that generates realistic demo data:
-
-- 2000 customers across 5 personas (VIP, REGULAR, DORMANT, NEW, DISCOUNT_HUNTER)
-- Persona-driven order counts, values, and categories
-- 10 named segments with rule-based definitions
-- 12 campaigns across all channels and statuses
-- Full communication + event timelines with realistic open/click/convert rates
-
-Run it with:
-```bash
-npm run db:seed
-```
-
-#### Project Structure
+## Architecture Overview
 
 ```
-Backend/
-├── Prisma/
-│   ├── schema.prisma        # DB schema
-│   └── seed.ts              # Seed script
-├── src/
-│   ├── config/
-│   │   └── database.ts      # Prisma singleton + type re-exports
-│   ├── controllers/
-│   │   ├── customer.controller.ts    # profile, metrics, top customers
-│   │   └── ingestion.controller.ts  # CSV upload for customers & orders
-│   ├── repositories/
-│   │   └── customer.repository.ts   # all DB access for customer domain
-│   ├── routes/
-│   │   ├── customer.routes.ts       # GET /api/customers/*
-│   │   └── ingestion.routes.ts      # POST /api/*/upload
-│   └── index.ts             # Express app entry point
-├── .env
-├── package.json
-└── tsconfig.json
+┌─────────────────────────────────────────────────────────────────────┐
+│                         FRONTEND (Next.js)                         │
+│  Dashboard · Campaigns · Segments · Customers · Campaign Copilot   │
+│                    Deployed on Vercel                               │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │  REST API calls
+                             ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                     CRM BACKEND (Express + Prisma)                 │
+│                                                                    │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐             │
+│  │ Ingest   │ │ Segment  │ │ Campaign │ │ AI       │             │
+│  │ Service  │ │ Service  │ │ Service  │ │ Services │             │
+│  │ (CSV)    │ │ (Rules)  │ │ (CRUD)   │ │ (Gemini) │             │
+│  └──────────┘ └──────────┘ └────┬─────┘ └──────────┘             │
+│                                  │                                 │
+│  ┌──────────┐ ┌──────────┐     │ dispatch                        │
+│  │ Webhook  │ │ Execution│◄────┘                                  │
+│  │ Service  │ │ Service  │──── chunked HTTP ────┐                 │
+│  │(receipts)│ │(pipeline)│                      │                 │
+│  └────┬─────┘ └──────────┘                      │                 │
+│       │                                          │                 │
+│  ┌────┴─────┐ ┌──────────┐                      │                 │
+│  │Analytics │ │ Cron     │                      │                 │
+│  │ Service  │ │ Scheduler│                      │                 │
+│  └──────────┘ └──────────┘                      │                 │
+│       Deployed on Render                         │                 │
+└──────────────────────────────────────────────────┼─────────────────┘
+                                                   │
+              webhook callbacks (async)            │
+                       ▲                           ▼
+┌──────────────────────┴───────────────────────────────────────────┐
+│                    CHANNEL SERVICE (Express)                      │
+│                                                                   │
+│  POST /simulator/send  →  simulates delivery outcomes            │
+│  Fires event chains: SENT → DELIVERED → OPENED → CLICKED         │
+│  Calls back to CRM:  POST /api/webhooks/receipt                  │
+│                                                                   │
+│  Separate process on port 3002 — no shared DB                    │
+└──────────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                     PostgreSQL (via Prisma ORM)                   │
+│  customers · orders · segments · campaigns · communications      │
+│  communication_events                                             │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-#### API Endpoints
+---
 
+## How AI Is Woven Into the Product
+
+AI is integrated at **three distinct decision points**, not bolted on:
+
+| Integration Point | Service | Model | What It Does |
+|---|---|---|---|
+| **Segment Suggestion** | `AI.service.ts` | Gemini 2.0 Flash | Translates natural-language audience descriptions into structured database filters using JSON schema enforcement |
+| **Campaign Copilot** | `AICampaign.service.ts` | Gemini 2.0 Flash | RAG pipeline: retrieves audience metrics from DB, augments system prompt, generates optimal channel + personalized message |
+| **Post-Campaign Insights** | `insights.service.ts` | Gemini 1.5 Flash | Converts funnel metrics into executive summary, identifies bottlenecks, and recommends next actions |
+
+---
+
+## API Endpoints
+
+### Customers
 | Method | Path | Description |
 |--------|------|-------------|
+| `GET` | `/api/customers` | Paginated customer list (query: `page`, `limit`) |
+| `GET` | `/api/customers/dashboard` | Dashboard aggregate stats |
 | `GET` | `/api/customers/top?limit=10` | Top customers by lifetime spend |
-| `GET` | `/api/customers/:id` | Customer profile with full order history |
-| `GET` | `/api/customers/:id/metrics` | Aggregated metrics (total orders, spend, AOV, last purchase) |
-| `POST` | `/api/customers/upload` | Bulk import customers via CSV |
-| `POST` | `/api/orders/upload` | Bulk import orders via CSV |
+| `GET` | `/api/customers/:id` | Customer profile with order history |
+| `GET` | `/api/customers/:id/metrics` | Aggregated metrics (AOV, total spend) |
+| `POST` | `/api/ingestion/customers/upload` | Bulk import customers via CSV |
+| `POST` | `/api/ingestion/orders/upload` | Bulk import orders via CSV |
 
-#### Tech Stack
+### Segments
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/segments` | List all segments |
+| `POST` | `/api/segments` | Create and evaluate a segment |
+| `POST` | `/api/segments/evaluate` | Preview audience count without saving |
 
-| Layer | Choice |
-|-------|--------|
-| Runtime | Node.js |
-| Language | TypeScript 5 |
-| Framework | Express 4 |
-| ORM | Prisma 6 |
-| Database | PostgreSQL |
-| File uploads | Multer (memory storage) |
-| CSV parsing | csv-parser |
-| Dev server | ts-node-dev |
+### AI
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/ai/segment-suggest` | Natural language → segment filters (Gemini) |
+
+### Campaigns
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/campaigns` | List all campaigns |
+| `GET` | `/api/campaigns/:id` | Campaign details with communication stats |
+| `POST` | `/api/campaigns/draft` | AI-powered campaign drafting (channel + message) |
+| `PATCH` | `/api/campaigns/:id/status` | Update campaign status (DRAFT → SCHEDULED → RUNNING) |
+| `GET` | `/api/campaigns/:id/analytics` | Funnel metrics + AI insights |
+
+### Webhooks
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/webhooks/receipt` | Receive delivery/engagement events from channel service |
+
+### Channel Service (separate process, port 3002)
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/simulator/send` | Accept a communication, simulate delivery outcome |
+| `GET` | `/health` | Health check |
 
 ---
 
-## How to Run
+## Scale Assumptions & Tradeoffs
+
+| Decision | Rationale |
+|---|---|
+| **Segment evaluation via Prisma `groupBy` + `having`** | Pushes aggregation to PostgreSQL. Works well up to ~100K customers. At scale, I'd use a pre-computed materialized view or a streaming pipeline (Kafka → ClickHouse). |
+| **Chunked dispatch (50/batch) with `Promise.allSettled`** | Prevents overwhelming the channel service. Each chunk is independent — one failure doesn't abort others. At scale, I'd use a proper message queue (Bull/BullMQ or SQS). |
+| **Serializable transaction for webhook processing** | Prevents race conditions when multiple events for the same communication arrive simultaneously. The `STATUS_RANK` guard ensures out-of-order events never downgrade status. At scale, I'd use Redis-based idempotency keys. |
+| **Cron-based campaign scheduler (1-minute polling)** | Simple and reliable for this scope. At scale, I'd use a delay queue or scheduler service (e.g., Temporal) for second-level precision. |
+| **7-day conversion attribution via raw SQL** | A deliberate JOIN between communications and orders with a time window. At scale, this would be a batch job or a streaming attribution pipeline. |
+| **Channel service as separate process (no shared DB)** | Mirrors real-world architecture where delivery providers are external services. Communication is purely HTTP-based: CRM sends, channel simulates and calls back. |
+| **AI structured output with `responseMimeType` + `responseSchema`** | Guarantees valid JSON from Gemini. Eliminates regex-based parsing. Fallback: markdown fence stripping + try/catch. |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | Next.js 16, React 19, TypeScript, Tailwind CSS 4, Framer Motion |
+| **Backend** | Node.js, Express 4, TypeScript 5 |
+| **ORM** | Prisma 6 |
+| **Database** | PostgreSQL |
+| **AI** | Google Gemini (2.0 Flash, 1.5 Flash) via `@google/genai` SDK |
+| **File uploads** | Multer (memory storage) + csv-parser |
+| **Scheduling** | node-cron |
+| **Deployment** | Vercel (frontend), Render (backend) |
+
+---
+
+## How to Run Locally
 
 ### Prerequisites
-
 - Node.js 18+
 - PostgreSQL running locally
-- A database named `xeno_crm` created
+- A database named `xeno_crm`
 
-### 1. Install dependencies
+### 1. Backend
 ```bash
 cd Backend
 npm install
-```
-
-### 2. Configure environment
-Copy `env.example` to `.env` and fill in your values:
-```bash
-DATABASE_URL="postgresql://postgres:<password>@localhost:5432/xeno_crm"
-PORT=3001
-NODE_ENV=development
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-### 3. Push schema to database
-```bash
+cp env.example .env    # Fill in DATABASE_URL and GEMINI_API_KEY
 npx prisma generate
 npx prisma db push
+npm run db:seed        # Generate 2000 customers, orders, segments, campaigns
+npm run dev            # Starts on port 3001
 ```
 
-### 4. Seed the database
+### 2. Channel Service
 ```bash
-npm run db:seed
+cd Channel
+npm install
+npm run dev            # Starts on port 3002
 ```
 
-### 5. Start the dev server
+### 3. Frontend
 ```bash
-npm run dev
+cd frontend
+npm install
+npm run dev            # Starts on port 3000
 ```
 
-Server runs at `http://localhost:3001`
+Open `http://localhost:3000` to access the CRM dashboard.
 
 ---
 
-## CSV Import Format
+## Project Structure
 
-### Customers (`POST /api/customers/upload`)
 ```
-name,email,phone,gender,city,signup_date
-John Doe,john@example.com,+919000000001,Male,Delhi,2024-01-15
+├── Backend/                    # CRM API server (port 3001)
+│   ├── Prisma/
+│   │   ├── schema.prisma       # 6-model relational schema
+│   │   └── seed.ts             # Persona-driven realistic data generator
+│   └── src/
+│       ├── config/             # Prisma singleton
+│       ├── controllers/        # HTTP layer (request parsing, response shaping)
+│       ├── services/           # Business logic (AI, campaigns, segments, analytics)
+│       ├── repositories/       # Data access layer
+│       ├── routes/             # Express route definitions
+│       ├── cron/               # Campaign scheduler (1-min polling)
+│       ├── middleware/         # Error handler
+│       └── utils/              # Response helpers
+├── Channel/                    # Stubbed channel simulator (port 3002)
+│   └── src/index.ts            # Standalone Express app
+├── frontend/                   # Next.js dashboard
+│   └── src/
+│       ├── app/                # Pages (dashboard, campaigns, segments, customers)
+│       │   └── components/     # Sidebar, shared UI
+│       └── lib/api.ts          # Typed API client
+└── README.md
 ```
-Required: `name`, `email`. Everything else is optional.
-
-### Orders (`POST /api/orders/upload`)
-```
-customer_id,order_date,order_value,category
-<uuid>,2024-03-10,1299.00,Apparel
-```
-All four columns are required.
-
----
-
-## What's Next
-
-- [x] Segment builder API (evaluate rules against live customer data)
-- [ ] Campaign creation and launch API
-- [ ] AI-powered message generation (Anthropic)
-- [ ] Channel service for message delivery simulation
-- [ ] Frontend dashboard

@@ -1,6 +1,8 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { AnalyticsService, CampaignMetrics } from "./analytics.service";
 
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+
 // Initialize the Google Gen AI client with the API key from environment variables
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -56,7 +58,7 @@ ${JSON.stringify(metrics, null, 2)}`;
 
     // 3. Call the AI model
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: DEFAULT_GEMINI_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",

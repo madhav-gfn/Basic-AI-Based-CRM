@@ -60,6 +60,8 @@ const CAMPAIGN_DRAFT_SCHEMA: Schema = {
 // AICampaignService
 // ─────────────────────────────────────────────────────────────────────────────
 
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+
 export class AICampaignService {
   private readonly ai: GoogleGenAI;
 
@@ -110,13 +112,6 @@ MESSAGE RULES:
 - One specific, time-bound call-to-action
 - Max 160 characters for SMS; max 300 for all other channels
 - No emoji for SMS or RCS
-
-Respond with ONLY valid JSON in this exact format:
-{
-  "suggestedChannel": "WhatsApp" | "Email" | "SMS" | "RCS",
-  "message": "string",
-  "explanation": "string"
-}
     `.trim();
   }
 
@@ -127,10 +122,6 @@ Respond with ONLY valid JSON in this exact format:
    *   Retrieve  -> audienceMetrics passed in (computed from Prisma by CampaignService)
    *   Augment   -> metrics serialised as plain text into the system prompt
    *   Generate  -> Gemini returns structured JSON matching CAMPAIGN_DRAFT_SCHEMA
-   *
-   * Newer SDK pattern used throughout:
-   *   ai.models.generateContent({ model, contents, config })
-   *   response.text  -- getter, not a method
    */
   async generateCampaignDraft(
     objective: string,
@@ -140,30 +131,41 @@ Respond with ONLY valid JSON in this exact format:
       throw new Error("Campaign objective cannot be empty.");
     }
 
-    const response = await this.ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents:
-        `Campaign objective: "${objective}"\n\n` +
-        `Based on the audience context in your system prompt, select the optimal ` +
-        `channel and write a high-converting message that directly serves this objective.`,
-      config: {
-        systemInstruction: this.buildSystemPrompt(audienceMetrics),
-        temperature: 0.4,
-        topP: 0.9,
-      },
-    });
+    try {
+      const response = await this.ai.models.generateContent({
+        model: DEFAULT_GEMINI_MODEL,
+        contents:
+          `Campaign objective: "${objective}"\n\n` +
+          `Based on the audience context in your system prompt, select the optimal ` +
+          `channel and write a high-converting message that directly serves this objective.`,
+        config: {
+          systemInstruction: this.buildSystemPrompt(audienceMetrics),
+          responseMimeType: "application/json",
+          responseSchema: CAMPAIGN_DRAFT_SCHEMA,
+          temperature: 0.4,
+          topP: 0.9,
+        },
+      });
 
-    const raw = response.text;
-    if (!raw) {
-      throw new Error("AI response did not include text.");
+      const raw = response.text;
+      if (!raw) throw new Error("AI response did not include text.");
+
+      let responseText = raw.trim();
+      if (responseText.startsWith("```")) {
+        responseText = responseText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+      }
+      return JSON.parse(responseText) as CampaignDraft;
+    } catch (err: any) {
+      if (err.message?.includes("429") || err.status === 429 || err.message?.includes("invalid JSON")) {
+        console.warn("[AI Campaign] Quota exceeded or parse failed. Using mock campaign fallback.");
+        return {
+          suggestedChannel: "WhatsApp",
+          message: `Hi {name}, here's a special offer on your favourite styles! Shop now and save.`,
+          explanation: "(MOCK DUE TO API QUOTA) WhatsApp chosen for high engagement potential.",
+        };
+      }
+      throw err;
     }
-
-    const responseText = raw.trim();
-    
-    // Parse JSON manually since we can't use responseSchema with this model
-    const parsed = JSON.parse(responseText) as CampaignDraft;
-    
-    return parsed;
   }
 }
 
