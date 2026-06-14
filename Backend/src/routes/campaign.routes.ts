@@ -5,7 +5,7 @@ import {
   getCampaignById,
   updateCampaignStatus,
 } from "../controllers/campaign.controller";
-import { AnalyticsController } from "../controllers/AnalyticsController";
+import { AnalyticsController } from "../controllers/analytics.controller";
 
 const router = Router();
 

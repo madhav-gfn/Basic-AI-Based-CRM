@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { AnalyticsService, CampaignMetrics } from "./AnalyticsService";
+import { AnalyticsService, CampaignMetrics } from "./analytics.service";
 
 // Initialize the Google Gen AI client with the API key from environment variables
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });

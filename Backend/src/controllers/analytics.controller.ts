@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { AnalyticsService } from "../services/AnalyticsService";
-import { InsightsService } from "../services/InsightsService";
+import { AnalyticsService } from "../services/analytics.service";
+import { InsightsService } from "../services/insights.service";
 
 export class AnalyticsController {
   /**
@@ -27,7 +27,7 @@ export class AnalyticsController {
       // or we can just run both.
       // Let's run them concurrently: AnalyticsService handles DB, InsightsService handles AI+DB.
       // (InsightsService will hit the DB again, but it's safe and fast).
-      
+
       const [metrics, insights] = await Promise.all([
         AnalyticsService.getCampaignMetrics(id),
         InsightsService.generateCampaignInsights(id).catch((err) => {
