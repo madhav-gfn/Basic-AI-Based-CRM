@@ -7,6 +7,8 @@ services:
     buildCommand: "npm cache clean --force && npm ci && npx prisma generate --schema=./Prisma/schema.prisma && npm run build"
     startCommand: "npm start"
     envVars:
+      - key: NODE_VERSION
+        value: 20.18.1
       - key: DATABASE_URL
         sync: false
       - key: GEMINI_API_KEY
@@ -25,6 +27,8 @@ services:
     buildCommand: "npm cache clean --force && npm ci && npm run build"
     startCommand: "npm start"
     envVars:
+      - key: NODE_VERSION
+        value: 20.18.1
       - key: CRM_RECEIPT_URL
         sync: false
       - key: NODE_ENV

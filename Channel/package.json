@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Stubbed channel simulator — separate service that simulates message delivery and fires webhook callbacks to the CRM.",
   "main": "dist/index.js",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
