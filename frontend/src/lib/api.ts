@@ -263,3 +263,52 @@ export interface AnalyticsResponse {
 export async function getCampaignAnalytics(campaignId: string): Promise<AnalyticsResponse> {
   return apiFetch(`/campaigns/${campaignId}/analytics`);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ingestion
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface IngestionResponse {
+  success: boolean;
+  data: {
+    total_rows: number;
+    ingested: number;
+    skipped_invalid: number;
+    skipped_duplicates: number;
+  };
+  message: string;
+}
+
+export async function uploadCustomersCsv(file: File): Promise<IngestionResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(buildApiUrl('/ingestion/customers/upload'), {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || body.message || `API error: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function uploadOrdersCsv(file: File): Promise<IngestionResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(buildApiUrl('/ingestion/orders/upload'), {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || body.message || `API error: ${res.status}`);
+  }
+
+  return res.json();
+}

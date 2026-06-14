@@ -8,54 +8,105 @@ Built for the Xeno Engineering Internship Assignment 2026.
 
 ## Architecture Overview
 
+```mermaid
+flowchart TD
+    %% Frontend
+    subgraph FE[Frontend - Next.js / Vercel]
+        UI["Dashboard • Campaigns • Segments • Customers • Campaign Copilot"]
+    end
+
+    %% CRM Backend
+    subgraph BE[CRM Backend - Express + Prisma / Render]
+        direction TB
+        subgraph Top[Services]
+            direction LR
+            Ingest["Ingest Service\n(CSV)"]
+            Segment["Segment Service\n(Rules)"]
+            Campaign["Campaign Service\n(CRUD)"]
+            AI["AI Services\n(Gemini)"]
+        end
+        subgraph Bottom[Workers & Core]
+            direction LR
+            Webhook["Webhook Service\n(receipts)"]
+            Exec["Execution Service\n(pipeline)"]
+            Analytics["Analytics Service"]
+            Cron["Cron Scheduler"]
+        end
+        Cron -- dispatch --> Exec
+    end
+
+    %% Channel Service
+    subgraph CS[Channel Service - Express / port 3002]
+        direction TB
+        Simulator["POST /simulator/send"]
+        Events["Simulates outcomes:\nSENT → DELIVERED → OPENED → CLICKED"]
+        Simulator --> Events
+    end
+
+    %% Database
+    subgraph DB[PostgreSQL via Prisma ORM]
+        Tables[("customers • orders • segments\ncampaigns • communications")]
+    end
+
+    FE -- REST API calls --> BE
+    Exec -- chunked HTTP --> Simulator
+    Events -- POST /api/webhooks/receipt --> Webhook
+    BE --> DB
+    
+    classDef frontend fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#fff;
+    classDef backend fill:#1e293b,stroke:#8b5cf6,stroke-width:2px,color:#fff;
+    classDef external fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff;
+    classDef database fill:#450a0a,stroke:#ef4444,stroke-width:2px,color:#fff;
+    
+    class FE frontend;
+    class BE backend;
+    class CS external;
+    class DB database;
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         FRONTEND (Next.js)                         │
-│  Dashboard · Campaigns · Segments · Customers · Campaign Copilot   │
-│                    Deployed on Vercel                               │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │  REST API calls
-                             ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                     CRM BACKEND (Express + Prisma)                 │
-│                                                                    │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐             │
-│  │ Ingest   │ │ Segment  │ │ Campaign │ │ AI       │             │
-│  │ Service  │ │ Service  │ │ Service  │ │ Services │             │
-│  │ (CSV)    │ │ (Rules)  │ │ (CRUD)   │ │ (Gemini) │             │
-│  └──────────┘ └──────────┘ └────┬─────┘ └──────────┘             │
-│                                  │                                 │
-│  ┌──────────┐ ┌──────────┐     │ dispatch                        │
-│  │ Webhook  │ │ Execution│◄────┘                                  │
-│  │ Service  │ │ Service  │──── chunked HTTP ────┐                 │
-│  │(receipts)│ │(pipeline)│                      │                 │
-│  └────┬─────┘ └──────────┘                      │                 │
-│       │                                          │                 │
-│  ┌────┴─────┐ ┌──────────┐                      │                 │
-│  │Analytics │ │ Cron     │                      │                 │
-│  │ Service  │ │ Scheduler│                      │                 │
-│  └──────────┘ └──────────┘                      │                 │
-│       Deployed on Render                         │                 │
-└──────────────────────────────────────────────────┼─────────────────┘
-                                                   │
-              webhook callbacks (async)            │
-                       ▲                           ▼
-┌──────────────────────┴───────────────────────────────────────────┐
-│                    CHANNEL SERVICE (Express)                      │
-│                                                                   │
-│  POST /simulator/send  →  simulates delivery outcomes            │
-│  Fires event chains: SENT → DELIVERED → OPENED → CLICKED         │
-│  Calls back to CRM:  POST /api/webhooks/receipt                  │
-│                                                                   │
-│  Separate process on port 3002 — no shared DB                    │
-└──────────────────────────────────────────────────────────────────┘
-                             │
-                             ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                     PostgreSQL (via Prisma ORM)                   │
-│  customers · orders · segments · campaigns · communications      │
-│  communication_events                                             │
-└──────────────────────────────────────────────────────────────────┘
+
+## Database Schema
+
+```mermaid
+erDiagram
+    CUSTOMER ||--o{ ORDER : places
+    CUSTOMER ||--o{ COMMUNICATION : receives
+    SEGMENT ||--o{ CAMPAIGN : targets
+    CAMPAIGN ||--o{ COMMUNICATION : generates
+    COMMUNICATION ||--o{ COMMUNICATION_EVENT : tracks
+
+    CUSTOMER {
+        String id PK
+        String name
+        String email UK
+        String phone
+    }
+    ORDER {
+        String id PK
+        Float orderValue
+        String category
+        DateTime orderDate
+    }
+    SEGMENT {
+        String id PK
+        String name
+        Json definition
+    }
+    CAMPAIGN {
+        String id PK
+        String name
+        String channel
+        String status
+    }
+    COMMUNICATION {
+        String id PK
+        String channel
+        String status
+    }
+    COMMUNICATION_EVENT {
+        String id PK
+        String eventType
+        DateTime timestamp
+    }
 ```
 
 ---
@@ -209,3 +260,15 @@ Open `http://localhost:3000` to access the CRM dashboard.
 │       └── lib/api.ts          # Typed API client
 └── README.md
 ```
+
+---
+
+## Limitations & Known Issues
+
+Due to the time-constrained nature of this assignment, there are a few known limitations:
+
+1. **Transaction Deadlocks on Rapid Refreshes:** 
+   - *Issue:* If the dashboard or data-heavy pages are refreshed too quickly, it triggers multiple concurrent data fetch requests to the backend. Under heavy load, this can occasionally result in PostgreSQL transaction deadlocks.
+   - *Planned Fix:* Implementing robust client-side caching (using tools like React Query, SWR, or Next.js App Router caching mechanisms) and request debouncing would prevent redundant API calls and resolve this issue.
+2. **Authentication & Authorization:** The CRM currently lacks a login system. All routes are publicly accessible, which is typical for an MVP but would need a proper Auth provider (e.g., NextAuth, Clerk) for production.
+3. **Queueing System:** Webhook processing and campaign execution rely on simple promises and cron scheduling. A robust message queue (like BullMQ or RabbitMQ) would be required to handle massive scale reliably.
