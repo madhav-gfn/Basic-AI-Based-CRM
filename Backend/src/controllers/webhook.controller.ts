@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { webhookService, type WebhookPayload } from "../services/webhook.service";
 
 const router = Router();
