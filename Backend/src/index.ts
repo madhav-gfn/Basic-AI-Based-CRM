@@ -14,7 +14,17 @@ const app = express();
 const PORT = process.env.PORT ?? 3001;
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
 
-app.use(cors());
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : [];
+
+app.use(
+  cors(
+    allowedOrigins.length > 0
+      ? { origin: allowedOrigins, credentials: true }
+      : undefined // allow all in dev when ALLOWED_ORIGINS is not set
+  )
+);
 app.use(express.json());
 
 app.use("/api/ingestion", ingestionRouter);
