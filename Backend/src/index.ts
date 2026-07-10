@@ -7,6 +7,7 @@ import segmentRouter from "./routes/segment.routes";
 import aiRouter from "./routes/ai.routes";
 import campaignRouter from "./routes/campaign.routes";
 import importRouter from "./routes/import.routes";
+import importRouter from "./routes/import.routes";
 import webhookRouter from "./controllers/webhook.controller";
 import { errorHandler } from "./middleware/errorHandler";
 import { initCron } from "./cron/campaign.cron";
@@ -14,6 +15,7 @@ import { initCron } from "./cron/campaign.cron";
 const app = express();
 const PORT = process.env.PORT ?? 3001;
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
 const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -29,6 +31,7 @@ app.use(
 );
 app.use(express.json());
 
+// ── Existing Xeno CRM routes ────────────────────────────────────────────
 app.use("/api/ingestion", ingestionRouter);
 app.use("/api/customers", customerRouter);
 app.use("/api/segments", segmentRouter);
@@ -45,6 +48,8 @@ initCron();
 
 app.listen(PORT, () => {
   console.log(`[CRM Backend] Running on port ${PORT}`);
+  console.log(`[CRM Backend] Gemini model: ${GEMINI_MODEL}`);
+  console.log(`[CRM Backend] Groq model: ${GROQ_MODEL}`);
   console.log(`[CRM Backend] Gemini model: ${GEMINI_MODEL}`);
   console.log(`[CRM Backend] Groq model: ${GROQ_MODEL}`);
 });
