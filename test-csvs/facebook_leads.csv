@@ -1,0 +1,8 @@
+full_name,email_address,phone_number,ad_name,campaign_name,created_time,city,platform
+John Doe,john.doe@example.com,+919876543210,Summer Sale Ad,Summer Campaign,2026-05-13 14:20:48,Mumbai,Facebook
+Sarah Johnson,sarah.j@techsolutions.com,+919876543211,Product Launch,Launch Week,2026-05-13 14:25:30,Bangalore,Facebook
+Rajesh Patel,rajesh.p@startup.io,+919876543212,Free Trial Offer,Trial Campaign,2026-05-13 14:30:15,Delhi,Facebook
+Priya Singh,priya.s@enterprise.com,+919876543213,Webinar Signup,Knowledge Series,2026-05-13 14:35:22,Pune,Facebook
+No Email Lead,,+919876543214,Cold Outreach,Outreach Q2,2026-05-14 09:00:00,Chennai,Facebook
+No Contact,,,Retargeting Ad,Retarget May,2026-05-14 10:00:00,,Facebook
+Amit Kumar,amit.k@company.in,+919876543215,Product Demo,Demo Campaign,2026-05-15 11:30:00,Hyderabad,Facebook

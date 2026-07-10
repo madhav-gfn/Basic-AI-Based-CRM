@@ -1,0 +1,6 @@
+Campaign,Ad Group,Lead Type,User Email,User Phone,First Name,Last Name,Company,City,State,Country,Submission Date,Notes
+Brand Awareness,Retargeting,Hot Lead,alice@wonderland.com,+14155551234,Alice,Wonder,Wonder Corp,San Francisco,California,USA,2026-06-01 10:00:00,Very interested in premium plan
+Search Campaign,Keywords Group A,Cold Lead,bob@builder.com,,Bob,Builder,BuildRight Inc,New York,New York,USA,2026-06-01 11:30:00,Downloaded whitepaper
+Display Network,Banner Ads,Warm Lead,carol@design.co,+442071234567,Carol,Designer,DesignStudio,London,,United Kingdom,2026-06-02 09:15:00,Attended webinar last week
+Shopping,Product Listing,Converted,dave@ecommerce.com,+919999888777,Dave,Merchant,ShopEasy,Mumbai,Maharashtra,India,2026-06-02 14:00:00,Purchased enterprise license
+Video Ads,YouTube Pre-roll,Not Interested,eve@mail.com,+61412345678,Eve,Viewer,,Sydney,NSW,Australia,2026-06-03 16:45:00,Said pricing too high

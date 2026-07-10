@@ -37,3 +37,266 @@ body {
   background: #d1d5e0;
   border-radius: 3px;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   AI CSV Importer — Component Styles (ge-* prefix)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.ge-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+
+.ge-btn-primary {
+  background: var(--color-primary);
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 28px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(176, 186, 153, 0.3);
+}
+.ge-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(176, 186, 153, 0.4);
+  background: var(--color-primary-hover);
+}
+.ge-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ge-btn-secondary {
+  background: var(--color-card);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ge-btn-secondary:hover {
+  background: #f0f0f0;
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+/* ── Drop zone ──────────────────────────────────────────────────────────── */
+
+.ge-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: 16px;
+  padding: 60px 40px;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background: var(--color-card);
+}
+.ge-dropzone:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.ge-dropzone.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: 0 0 40px rgba(176, 186, 153, 0.3);
+}
+.ge-dropzone.has-file {
+  border-color: var(--color-accent-green);
+  border-style: solid;
+  background: var(--color-accent-green-soft);
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+
+.ge-table-container {
+  overflow: auto;
+  max-height: 480px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-card);
+}
+
+.ge-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.ge-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.ge-table th {
+  background: #f7f5ef;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ge-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ge-table tr:hover td {
+  background: #f7f5ef;
+  color: var(--color-text);
+}
+
+.ge-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Progress bar ───────────────────────────────────────────────────────── */
+
+.ge-progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ge-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent-green));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* ── Metrics card ───────────────────────────────────────────────────────── */
+
+.ge-metric-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ge-metric-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ge-metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+/* ── Badge / Pill ───────────────────────────────────────────────────────── */
+
+.ge-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ge-badge-success {
+  background: var(--color-accent-green-soft);
+  color: var(--color-accent-green);
+}
+.ge-badge-warning {
+  background: var(--color-accent-amber-soft);
+  color: var(--color-accent-amber);
+}
+.ge-badge-error {
+  background: var(--color-accent-rose-soft);
+  color: var(--color-accent-rose);
+}
+.ge-badge-accent {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* ── Step indicator ─────────────────────────────────────────────────────── */
+
+.ge-step-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ge-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+.ge-step.active {
+  opacity: 1;
+}
+.ge-step.completed {
+  opacity: 0.7;
+}
+
+.ge-step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  border: 2px solid var(--color-border);
+  color: var(--color-text-muted);
+  transition: all 0.3s ease;
+}
+.ge-step.active .ge-step-number {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 0 16px rgba(176, 186, 153, 0.4);
+}
+.ge-step.completed .ge-step-number {
+  border-color: var(--color-accent-green);
+  color: var(--color-accent-green);
+  background: var(--color-accent-green-soft);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .ge-dropzone {
+    padding: 40px 20px;
+  }
+  .ge-metric-value {
+    font-size: 22px;
+  }
+  .ge-table td, .ge-table th {
+    padding: 8px 12px;
+  }
+}
+

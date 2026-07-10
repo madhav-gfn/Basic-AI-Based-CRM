@@ -68,7 +68,8 @@ export default function LandingPage() {
           {[
             { icon: "⚡", text: "Omnichannel Campaigns" },
             { icon: "🧠", text: "AI-Powered Segmentation" },
-            { icon: "📊", text: "Real-time Analytics" }
+            { icon: "📊", text: "Real-time Analytics" },
+            { icon: "📄", text: "AI CSV Importer" },
           ].map((feature, i) => (
             <motion.div 
               key={i}
@@ -87,15 +88,28 @@ export default function LandingPage() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.7 }}
+          className="flex flex-wrap justify-center gap-4"
         >
           <Link href="/dashboard">
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 rounded-xl text-lg font-bold text-white shadow-lg shadow-[var(--color-primary-soft)] transition-all flex items-center gap-3 mx-auto"
+              className="px-8 py-4 rounded-xl text-lg font-bold text-white shadow-lg shadow-[var(--color-primary-soft)] transition-all flex items-center gap-3"
               style={{ background: 'var(--color-primary)' }}
             >
               Go to Dashboard
+              <span className="text-xl leading-none">→</span>
+            </motion.button>
+          </Link>
+
+          <Link href="/import">
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-8 py-4 rounded-xl text-lg font-bold text-white shadow-lg transition-all flex items-center gap-3"
+              style={{ background: 'linear-gradient(135deg, var(--color-accent-blue), var(--color-accent-green))', boxShadow: '0 4px 16px rgba(110,198,255,0.3)' }}
+            >
+              ⚡ AI CSV Importer
               <span className="text-xl leading-none">→</span>
             </motion.button>
           </Link>

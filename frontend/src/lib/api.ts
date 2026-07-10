@@ -312,3 +312,87 @@ export async function uploadOrdersCsv(file: File): Promise<IngestionResponse> {
 
   return res.json();
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI CSV Import
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CRMRecord {
+  created_at: string;
+  name: string;
+  email: string;
+  country_code: string;
+  mobile_without_country_code: string;
+  company: string;
+  city: string;
+  state: string;
+  country: string;
+  lead_owner: string;
+  crm_status: string;
+  crm_note: string;
+  data_source: string;
+  possession_time: string;
+  description: string;
+}
+
+export interface SkippedRecord {
+  row_index: number;
+  reason: string;
+  original_data: Record<string, string>;
+}
+
+export interface ImportResult {
+  total_rows: number;
+  total_imported: number;
+  total_skipped: number;
+  imported_records: CRMRecord[];
+  skipped_records: SkippedRecord[];
+  processing_time_ms: number;
+  batches_processed: number;
+}
+
+export interface ImportResponse {
+  success: boolean;
+  data: ImportResult;
+  message: string;
+}
+
+export async function importCSV(file: File): Promise<ImportResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(buildApiUrl('/import/csv'), {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || body.message || `API error: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export interface ChunkPayload {
+  headers: string[];
+  rows: Record<string, string>[];
+  startIndex: number;
+}
+
+export async function importCSVChunk(payload: ChunkPayload): Promise<ImportResponse> {
+  const res = await fetch(buildApiUrl('/import/chunk'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || body.message || `API error: ${res.status}`);
+  }
+
+  return res.json();
+}

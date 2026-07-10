@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/campaigns/new', label: 'Create Campaign', icon: '/Create_campaign.png' },
   { href: '/segments', label: 'Segments', icon: '/segment.png' },
   { href: '/customers', label: 'Customers', icon: '/customers.png' },
+  { href: '/import', label: 'AI CSV Import', icon: '/orders.png' },
 ];
 
 export default function Sidebar() {
