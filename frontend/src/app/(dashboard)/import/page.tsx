@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseCSVForPreview, formatFileSize, type CSVPreview } from '@/lib/csvPreview';
 import { importCSVChunk, type ImportResult } from '@/lib/api';
+import { Badge, Button, Card } from '@/app/components/ui';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Step type definitions
@@ -22,11 +23,7 @@ const STEPS: { key: Step; label: string }[] = [
 // CRM display fields for results table
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CRM_FIELDS = [
-  'created_at', 'name', 'email', 'country_code', 'mobile_without_country_code',
-  'company', 'city', 'state', 'country', 'lead_owner',
-  'crm_status', 'crm_note', 'data_source', 'possession_time', 'description',
-];
+const CRM_FIELDS = ['name', 'email', 'phone', 'gender', 'city', 'signup_date'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main page component
@@ -189,12 +186,9 @@ export default function ImporterPage() {
           </p>
         </div>
         {step !== 'upload' && step !== 'processing' && (
-          <button
-            onClick={handleReset}
-            className="px-4 py-2 text-sm font-semibold rounded-lg border border-[var(--color-border)] hover:bg-gray-50 transition-all"
-          >
+          <Button variant="secondary" size="sm" onClick={handleReset}>
             ← New Import
-          </button>
+          </Button>
         )}
       </div>
 
@@ -238,7 +232,7 @@ export default function ImporterPage() {
           >
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <h2 style={{ fontSize: 28, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8 }}>
-                Import your leads
+                Import your customers
               </h2>
               <p style={{ fontSize: 15, color: 'var(--color-text-muted)' }}>
                 Upload any CSV file — our AI will intelligently map your columns to Moda CRM fields
@@ -305,10 +299,10 @@ export default function ImporterPage() {
               justifyContent: 'center',
               gap: 8,
             }}>
-              {['Facebook Leads', 'Google Ads', 'Real Estate CRM', 'Excel Exports', 'Custom Spreadsheets'].map((format) => (
-                <span key={format} className="ge-badge ge-badge-accent">
+              {['Shopify Exports', 'Google Ads', 'Facebook Leads', 'Excel Exports', 'Custom Spreadsheets'].map((format) => (
+                <Badge key={format} tone="primary" uppercase={false}>
                   {format}
-                </span>
+                </Badge>
               ))}
             </div>
 
@@ -320,8 +314,8 @@ export default function ImporterPage() {
                   marginTop: 20,
                   padding: '12px 20px',
                   borderRadius: 10,
-                  background: '#fde8ef',
-                  color: '#e53e3e',
+                  background: 'var(--color-accent-rose-soft)',
+                  color: 'var(--color-danger-text)',
                   fontSize: 14,
                   textAlign: 'center',
                 }}
@@ -342,15 +336,7 @@ export default function ImporterPage() {
             transition={{ duration: 0.3 }}
           >
             {/* File info bar */}
-            <div className="ge-card" style={{
-              padding: '16px 24px',
-              marginBottom: 20,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 12,
-            }}>
+            <Card className="flex items-center justify-between flex-wrap gap-3 px-6 py-4 mb-5">
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <span style={{ fontSize: 28 }}>📊</span>
                 <div>
@@ -363,14 +349,10 @@ export default function ImporterPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={handleReset} className="ge-btn-secondary" style={{ fontSize: 13, padding: '8px 16px' }}>
-                  Remove
-                </button>
-                <button onClick={handleConfirmImport} className="ge-btn-primary" style={{ fontSize: 14 }}>
-                  🚀 Confirm Import
-                </button>
+                <Button variant="secondary" size="sm" onClick={handleReset}>Remove</Button>
+                <Button size="sm" onClick={handleConfirmImport}>🚀 Confirm Import</Button>
               </div>
-            </div>
+            </Card>
 
             {error && (
               <motion.div
@@ -380,8 +362,8 @@ export default function ImporterPage() {
                   marginBottom: 16,
                   padding: '12px 20px',
                   borderRadius: 10,
-                  background: '#fde8ef',
-                  color: '#e53e3e',
+                  background: 'var(--color-accent-rose-soft)',
+                  color: 'var(--color-danger-text)',
                   fontSize: 14,
                 }}
               >
@@ -532,9 +514,7 @@ export default function ImporterPage() {
                       {result.imported_records.length} records successfully extracted
                     </p>
                   </div>
-                  <span className="ge-badge ge-badge-success">
-                    ✓ {result.imported_records.length} imported
-                  </span>
+                  <Badge tone="success">✓ {result.imported_records.length} imported</Badge>
                 </div>
 
                 <div className="ge-table-container" style={{ marginBottom: 32 }}>
@@ -553,11 +533,7 @@ export default function ImporterPage() {
                           <td style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>{idx + 1}</td>
                           {CRM_FIELDS.map((field) => (
                             <td key={field}>
-                              {field === 'crm_status' ? (
-                                <StatusBadge status={record[field as keyof typeof record] as string} />
-                              ) : (
-                                (record[field as keyof typeof record] as string) || '—'
-                              )}
+                              {(record[field as keyof typeof record] as string) || '—'}
                             </td>
                           ))}
                         </tr>
@@ -580,9 +556,7 @@ export default function ImporterPage() {
                       These rows could not be imported
                     </p>
                   </div>
-                  <span className="ge-badge ge-badge-warning">
-                    ⚠ {result.skipped_records.length} skipped
-                  </span>
+                  <Badge tone="warning">⚠ {result.skipped_records.length} skipped</Badge>
                 </div>
 
                 <div className="ge-table-container">
@@ -614,9 +588,7 @@ export default function ImporterPage() {
 
             {/* Action buttons */}
             <div style={{ marginTop: 32, textAlign: 'center' }}>
-              <button onClick={handleReset} className="ge-btn-primary" style={{ fontSize: 15 }}>
-                📄 Import Another CSV
-              </button>
+              <Button onClick={handleReset}>📄 Import Another CSV</Button>
             </div>
           </motion.div>
         )}
@@ -679,31 +651,6 @@ function AnimatedNumber({ value, color }: { value: number | string; color: strin
   return (
     <span className="ge-metric-value" style={{ color }}>
       {display}
-    </span>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { bg: string; color: string }> = {
-    GOOD_LEAD_FOLLOW_UP: { bg: 'var(--color-accent-green-soft)', color: 'var(--color-accent-green)' },
-    DID_NOT_CONNECT: { bg: 'var(--color-accent-amber-soft)', color: 'var(--color-accent-amber)' },
-    BAD_LEAD: { bg: 'var(--color-accent-rose-soft)', color: 'var(--color-accent-rose)' },
-    SALE_DONE: { bg: 'var(--color-accent-blue-soft)', color: 'var(--color-accent-blue)' },
-  };
-
-  const c = config[status] || { bg: '#f0f0f0', color: 'var(--color-text-muted)' };
-
-  return (
-    <span style={{
-      padding: '3px 10px',
-      borderRadius: 999,
-      fontSize: 10,
-      fontWeight: 700,
-      background: c.bg,
-      color: c.color,
-      whiteSpace: 'nowrap',
-    }}>
-      {status.replace(/_/g, ' ')}
     </span>
   );
 }

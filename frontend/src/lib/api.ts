@@ -283,7 +283,7 @@ export async function uploadCustomersCsv(file: File): Promise<IngestionResponse>
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch(buildApiUrl('/ingestion/customers/upload'), {
+  const res = await fetch(buildApiUrl('/ingestion/upload/customers'), {
     method: 'POST',
     body: formData,
   });
@@ -300,7 +300,7 @@ export async function uploadOrdersCsv(file: File): Promise<IngestionResponse> {
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch(buildApiUrl('/ingestion/orders/upload'), {
+  const res = await fetch(buildApiUrl('/ingestion/upload/orders'), {
     method: 'POST',
     body: formData,
   });
@@ -318,21 +318,12 @@ export async function uploadOrdersCsv(file: File): Promise<IngestionResponse> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface CRMRecord {
-  created_at: string;
   name: string;
   email: string;
-  country_code: string;
-  mobile_without_country_code: string;
-  company: string;
+  phone: string;
+  gender: string;
   city: string;
-  state: string;
-  country: string;
-  lead_owner: string;
-  crm_status: string;
-  crm_note: string;
-  data_source: string;
-  possession_time: string;
-  description: string;
+  signup_date: string;
 }
 
 export interface SkippedRecord {

@@ -33,43 +33,32 @@ function getGroqClient(): OpenAI {
 
 // ── System prompt ────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are a CRM data extraction assistant for GrowEasy CRM.
+const SYSTEM_PROMPT = `You are a CRM data extraction assistant for Moda CRM, an AI-native D2C customer platform.
 
-Your task: Given CSV rows with ARBITRARY column names, extract and map each row into the GrowEasy CRM schema. The columns may use any naming convention — map by SEMANTIC MEANING, not exact name matching.
+Your task: Given CSV rows with ARBITRARY column names, extract and map each row into Moda CRM's Customer schema. The columns may use any naming convention — map by SEMANTIC MEANING, not exact name matching. Moda CRM's database stores ONLY these fields for a customer — do not invent extra ones.
 
 TARGET CRM SCHEMA (JSON object per row):
 {
-  "created_at": "Lead creation date — ISO 8601 or any format parseable by JavaScript new Date(). If no date column exists, use empty string.",
-  "name": "Full name of the lead. Combine first + last name if separate.",
-  "email": "Primary email address.",
-  "country_code": "Phone country code, e.g. +91, +1. Include the + prefix.",
-  "mobile_without_country_code": "Mobile number WITHOUT country code. Digits only.",
-  "company": "Company or organization name.",
+  "name": "Full name of the customer. Combine first + last name if separate.",
+  "email": "Primary email address. REQUIRED — this is the unique identifier for the customer record.",
+  "phone": "Phone number in whatever format the source provides (country code, digits, +, - are all fine).",
+  "gender": "Customer gender if present, e.g. Male, Female, Other. Empty string if not present.",
   "city": "City name.",
-  "state": "State or province.",
-  "country": "Country name.",
-  "lead_owner": "Email or name of the lead owner / assignee.",
-  "crm_status": "MUST be exactly one of: GOOD_LEAD_FOLLOW_UP, DID_NOT_CONNECT, BAD_LEAD, SALE_DONE. If you cannot confidently determine the status, use GOOD_LEAD_FOLLOW_UP.",
-  "crm_note": "Notes, remarks, follow-up comments, extra contact info. Put anything useful here that doesn't fit other fields.",
-  "data_source": "MUST be exactly one of: leads_on_demand, meridian_tower, eden_park, varah_swamy, sarjapur_plots. If none match confidently, use empty string.",
-  "possession_time": "Property possession timeline if applicable, otherwise empty string.",
-  "description": "Additional description or context."
+  "signup_date": "Date the customer signed up / was created / first enquired — ISO 8601 or any format parseable by JavaScript new Date(). If no date column exists, use empty string."
 }
 
 CRITICAL RULES:
-1. Map columns by SEMANTIC MEANING. "Full Name" → name, "Phone Number" → mobile, "Email Address" → email, "Lead Status" → crm_status, "Remarks" → crm_note, "Source" → data_source, etc.
-2. If multiple email addresses exist in a row, use the FIRST as "email" and append the rest to "crm_note" prefixed with "Additional emails: ".
-3. If multiple phone numbers exist, use the FIRST as "mobile_without_country_code" and append the rest to "crm_note" prefixed with "Additional phones: ".
-4. crm_status MUST be one of the 4 allowed values. Map intelligently: "interested" / "hot" / "follow up" → GOOD_LEAD_FOLLOW_UP, "no answer" / "not reachable" → DID_NOT_CONNECT, "not interested" / "junk" / "spam" → BAD_LEAD, "converted" / "won" / "closed" / "sold" → SALE_DONE.
-5. data_source MUST be one of the 5 allowed values OR empty string "". Do NOT invent new values.
-6. For dates, output in a format parseable by JavaScript \`new Date()\`. Prefer "YYYY-MM-DD HH:mm:ss". If no date column exists, use "".
-7. If a row has NEITHER an email NOR a mobile number, set "_skip" to true and "_skip_reason" to "No email or mobile number found".
-8. NEVER introduce line breaks in field values. If you must include multi-line content, use \\n (escaped).
-9. For each empty/missing field, use empty string "" — never null or undefined.
-10. Preserve ALL useful information from the original row. If something doesn't fit the schema fields, put it in crm_note or description.
+1. Map columns by SEMANTIC MEANING. "Full Name" / "Customer Name" / "Lead Name" → name, "Phone Number" / "Mobile" / "Contact No" → phone, "Email Address" → email, "Sign Up Date" / "Created At" / "Registration Date" / "Joined On" / "Enquiry Date" → signup_date, "Sex" → gender.
+2. If multiple email addresses exist in a row, use the FIRST as "email".
+3. If multiple phone numbers exist, use the FIRST as "phone".
+4. name and email are REQUIRED. If a row is missing either one, set "_skip" to true and "_skip_reason" explaining which field is missing (e.g. "No email address found").
+5. For dates, output in a format parseable by JavaScript \`new Date()\`. Prefer "YYYY-MM-DD". If no date column exists, use "".
+6. NEVER introduce line breaks in field values. If you must include multi-line content, use \\n (escaped).
+7. For each empty/missing field, use empty string "" — never null or undefined.
+8. Columns that don't map to name, email, phone, gender, city, or signup_date (e.g. company, status, notes, campaign name, budget) carry no field in this schema — DO NOT fabricate a place to put them. Simply drop them.
 
 OUTPUT FORMAT:
-Return a JSON array of objects. Each object has all 15 CRM fields plus optional "_skip" (boolean) and "_skip_reason" (string).
+Return a JSON array of objects. Each object has the 6 CRM fields plus optional "_skip" (boolean) and "_skip_reason" (string).
 Return ONLY the JSON array, no markdown fences, no explanation.`;
 
 // ── Extraction types ─────────────────────────────────────────────────────────

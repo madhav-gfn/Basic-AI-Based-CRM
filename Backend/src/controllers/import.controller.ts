@@ -1,13 +1,60 @@
 import { Request, Response, NextFunction } from "express";
+import { Prisma } from "@prisma/client";
+import { prisma } from "../config/database";
 import { parseCSVBuffer } from "../services/csvParser.service";
 import { extractCRMRecords, BATCH_SIZE } from "../services/aiExtractor.service";
-import { postProcessRecords } from "../services/postProcessor.service";
+import { postProcessRecords, type ImportedRecord } from "../services/postProcessor.service";
 import { sendSuccess, sendError } from "../utils/response";
 import type { CRMRecord, SkippedRecord, ImportResult } from "../types/crm.types";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// import.controller.ts — Handles CSV upload → AI extraction → response
+// import.controller.ts — Handles CSV upload → AI extraction → Customer table
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Persist AI-extracted, post-processed records into the `customers` table.
+ * Inserted one at a time (batches are already small — 20-50 rows) so that
+ * duplicate emails can be reported individually instead of silently merged
+ * into a single createMany() count.
+ */
+async function persistImportedRecords(
+  candidates: ImportedRecord[]
+): Promise<{ persisted: CRMRecord[]; dbSkipped: SkippedRecord[] }> {
+  const persisted: CRMRecord[] = [];
+  const dbSkipped: SkippedRecord[] = [];
+
+  for (const { row_index, record } of candidates) {
+    try {
+      await prisma.customer.create({
+        data: {
+          name: record.name,
+          email: record.email,
+          phone: record.phone || null,
+          gender: record.gender || null,
+          city: record.city || null,
+          ...(record.signup_date ? { signupDate: new Date(record.signup_date) } : {}),
+        },
+      });
+      persisted.push(record);
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        dbSkipped.push({
+          row_index,
+          reason: `Duplicate email — a customer with email "${record.email}" already exists`,
+          original_data: record as unknown as Record<string, string>,
+        });
+      } else {
+        dbSkipped.push({
+          row_index,
+          reason: `Database error: ${(err as Error).message}`,
+          original_data: record as unknown as Record<string, string>,
+        });
+      }
+    }
+  }
+
+  return { persisted, dbSkipped };
+}
 
 export async function importCSV(
   req: Request,
@@ -47,9 +94,8 @@ export async function importCSV(
     );
 
     // ── 4. Post-process all batches ──────────────────────────────────────
-    const allImported: CRMRecord[] = [];
+    const importCandidates: ImportedRecord[] = [];
     const allSkipped: SkippedRecord[] = [];
-    const errors: string[] = [];
 
     for (const batch of batchResults) {
       if (batch.error) {
@@ -64,7 +110,6 @@ export async function importCSV(
             original_data: rows[i],
           });
         }
-        errors.push(batch.error);
         continue;
       }
 
@@ -80,25 +125,29 @@ export async function importCSV(
         batchStartIndex
       );
 
-      allImported.push(...imported);
+      importCandidates.push(...imported);
       allSkipped.push(...skipped);
     }
 
-    // ── 5. Build response ────────────────────────────────────────────────
+    // ── 5. Persist validated candidates into the Customer table ───────────
+    const { persisted, dbSkipped } = await persistImportedRecords(importCandidates);
+    allSkipped.push(...dbSkipped);
+
+    // ── 6. Build response ────────────────────────────────────────────────
     const processingTime = Date.now() - startTime;
 
     const result: ImportResult = {
       total_rows: rows.length,
-      total_imported: allImported.length,
+      total_imported: persisted.length,
       total_skipped: allSkipped.length,
-      imported_records: allImported,
+      imported_records: persisted,
       skipped_records: allSkipped,
       processing_time_ms: processingTime,
       batches_processed: batches_total,
     };
 
     console.log(
-      `[Import] Complete — ${allImported.length} imported, ${allSkipped.length} skipped, ${processingTime}ms`
+      `[Import] Complete — ${persisted.length} imported, ${allSkipped.length} skipped, ${processingTime}ms`
     );
 
     sendSuccess(res, result, "CSV import complete");
@@ -155,9 +204,8 @@ export async function importChunk(
     );
 
     // ── 2. Post-process all batches ──────────────────────────────────────
-    const allImported: CRMRecord[] = [];
+    const importCandidates: ImportedRecord[] = [];
     const allSkipped: SkippedRecord[] = [];
-    const errors: string[] = [];
 
     for (const batch of batchResults) {
       // batch.batch_index is relative to this chunk
@@ -173,7 +221,6 @@ export async function importChunk(
             original_data: rows[i],
           });
         }
-        errors.push(batch.error);
         continue;
       }
 
@@ -188,25 +235,29 @@ export async function importChunk(
         globalBatchStartIndex
       );
 
-      allImported.push(...imported);
+      importCandidates.push(...imported);
       allSkipped.push(...skipped);
     }
 
-    // ── 3. Build response ────────────────────────────────────────────────
+    // ── 3. Persist validated candidates into the Customer table ───────────
+    const { persisted, dbSkipped } = await persistImportedRecords(importCandidates);
+    allSkipped.push(...dbSkipped);
+
+    // ── 4. Build response ────────────────────────────────────────────────
     const processingTime = Date.now() - startTime;
 
     const result: ImportResult = {
       total_rows: rows.length,
-      total_imported: allImported.length,
+      total_imported: persisted.length,
       total_skipped: allSkipped.length,
-      imported_records: allImported,
+      imported_records: persisted,
       skipped_records: allSkipped,
       processing_time_ms: processingTime,
       batches_processed: batches_total,
     };
 
     console.log(
-      `[Import Chunk] Complete — ${allImported.length} imported, ${allSkipped.length} skipped`
+      `[Import Chunk] Complete — ${persisted.length} imported, ${allSkipped.length} skipped`
     );
 
     sendSuccess(res, result, "Chunk import complete");
@@ -215,4 +266,3 @@ export async function importChunk(
     next(error);
   }
 }
-

@@ -1,34 +1,29 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// GrowEasy CRM Types — AI-Powered CSV Import
+// Moda CRM Types — AI-Powered CSV Import
+//
+// Mirrors the `Customer` model in Prisma/schema.prisma: name, email, phone,
+// gender, city, signupDate. The AI extractor maps arbitrary CSV columns onto
+// exactly these fields — nothing more, nothing less.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** The 15-field GrowEasy CRM lead record. */
+/** A CSV row extracted into Moda CRM's Customer shape. */
 export interface CRMRecord {
-  created_at: string;
   name: string;
   email: string;
-  country_code: string;
-  mobile_without_country_code: string;
-  company: string;
+  phone: string;
+  gender: string;
   city: string;
-  state: string;
-  country: string;
-  lead_owner: string;
-  crm_status: string;
-  crm_note: string;
-  data_source: string;
-  possession_time: string;
-  description: string;
+  signup_date: string;
 }
 
-/** A row the AI or post-processor decided to skip. */
+/** A row the AI, post-processor, or database decided to skip. */
 export interface SkippedRecord {
   row_index: number;
   reason: string;
   original_data: Record<string, string>;
 }
 
-/** Shape returned by the POST /api/import/csv endpoint. */
+/** Shape returned by the POST /api/import/csv and /api/import/chunk endpoints. */
 export interface ImportResult {
   total_rows: number;
   total_imported: number;
@@ -38,26 +33,3 @@ export interface ImportResult {
   processing_time_ms: number;
   batches_processed: number;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Enums — single source of truth for allowed values
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const ALLOWED_CRM_STATUSES = [
-  "GOOD_LEAD_FOLLOW_UP",
-  "DID_NOT_CONNECT",
-  "BAD_LEAD",
-  "SALE_DONE",
-] as const;
-
-export type CRMStatus = (typeof ALLOWED_CRM_STATUSES)[number];
-
-export const ALLOWED_DATA_SOURCES = [
-  "leads_on_demand",
-  "meridian_tower",
-  "eden_park",
-  "varah_swamy",
-  "sarjapur_plots",
-] as const;
-
-export type DataSource = (typeof ALLOWED_DATA_SOURCES)[number];

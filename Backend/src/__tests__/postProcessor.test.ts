@@ -6,134 +6,47 @@ describe("postProcessRecords", () => {
   // ── Helper to make a minimal valid AI row ──────────────────────────────
   function makeRow(overrides: Partial<AIExtractionRow> = {}): AIExtractionRow {
     return {
-      created_at: "2026-05-13 14:20:48",
       name: "Test User",
       email: "test@example.com",
-      country_code: "+91",
-      mobile_without_country_code: "9876543210",
-      company: "TestCorp",
+      phone: "9876543210",
+      gender: "",
       city: "Mumbai",
-      state: "Maharashtra",
-      country: "India",
-      lead_owner: "owner@test.com",
-      crm_status: "GOOD_LEAD_FOLLOW_UP",
-      crm_note: "",
-      data_source: "",
-      possession_time: "",
-      description: "",
+      signup_date: "",
       ...overrides,
     };
   }
 
   const dummyOriginal = { name: "Test", email: "test@example.com" };
 
-  // ── crm_status validation ──────────────────────────────────────────────
+  // ── Required field validation ────────────────────────────────────────────
 
-  it("passes through valid crm_status values unchanged", () => {
-    const statuses = [
-      "GOOD_LEAD_FOLLOW_UP",
-      "DID_NOT_CONNECT",
-      "BAD_LEAD",
-      "SALE_DONE",
-    ];
-    for (const status of statuses) {
-      const { imported } = postProcessRecords(
-        [makeRow({ crm_status: status })],
-        [dummyOriginal],
-        0
-      );
-      expect(imported[0].crm_status).toBe(status);
-    }
+  it("keeps rows with both name and email", () => {
+    const { imported } = postProcessRecords([makeRow()], [dummyOriginal], 0);
+    expect(imported).toHaveLength(1);
+    expect(imported[0].record.name).toBe("Test User");
+    expect(imported[0].record.email).toBe("test@example.com");
   });
 
-  it("normalises variations to valid crm_status values", () => {
-    const mappings: [string, string][] = [
-      ["follow up", "GOOD_LEAD_FOLLOW_UP"],
-      ["interested", "GOOD_LEAD_FOLLOW_UP"],
-      ["not reachable", "DID_NOT_CONNECT"],
-      ["no answer", "DID_NOT_CONNECT"],
-      ["junk", "BAD_LEAD"],
-      ["spam", "BAD_LEAD"],
-      ["converted", "SALE_DONE"],
-      ["closed won", "SALE_DONE"],
-    ];
-    for (const [input, expected] of mappings) {
-      const { imported } = postProcessRecords(
-        [makeRow({ crm_status: input })],
-        [dummyOriginal],
-        0
-      );
-      expect(imported[0].crm_status).toBe(expected);
-    }
-  });
-
-  it("returns empty string for completely unrecognised crm_status", () => {
-    const { imported } = postProcessRecords(
-      [makeRow({ crm_status: "RANDOM_VALUE" })],
-      [dummyOriginal],
-      0
-    );
-    expect(imported[0].crm_status).toBe("");
-  });
-
-  // ── data_source validation ─────────────────────────────────────────────
-
-  it("passes through valid data_source values", () => {
-    const sources = [
-      "leads_on_demand",
-      "meridian_tower",
-      "eden_park",
-      "varah_swamy",
-      "sarjapur_plots",
-    ];
-    for (const source of sources) {
-      const { imported } = postProcessRecords(
-        [makeRow({ data_source: source })],
-        [dummyOriginal],
-        0
-      );
-      expect(imported[0].data_source).toBe(source);
-    }
-  });
-
-  it("returns empty string for invalid data_source", () => {
-    const { imported } = postProcessRecords(
-      [makeRow({ data_source: "facebook_ads" })],
-      [dummyOriginal],
-      0
-    );
-    expect(imported[0].data_source).toBe("");
-  });
-
-  // ── Skip logic ─────────────────────────────────────────────────────────
-
-  it("skips rows with neither email nor mobile", () => {
+  it("skips rows with no email", () => {
     const { imported, skipped } = postProcessRecords(
-      [makeRow({ email: "", mobile_without_country_code: "" })],
+      [makeRow({ email: "" })],
       [dummyOriginal],
       0
     );
     expect(imported).toHaveLength(0);
     expect(skipped).toHaveLength(1);
-    expect(skipped[0].reason).toContain("No email or mobile");
+    expect(skipped[0].reason).toContain("No email");
   });
 
-  it("keeps rows with only email (no mobile)", () => {
-    const { imported } = postProcessRecords(
-      [makeRow({ mobile_without_country_code: "" })],
+  it("skips rows with no name", () => {
+    const { imported, skipped } = postProcessRecords(
+      [makeRow({ name: "" })],
       [dummyOriginal],
       0
     );
-    expect(imported).toHaveLength(1);
-  });
-
-  it("keeps rows with only mobile (no email)", () => {
-    const { imported } = postProcessRecords(
-      [makeRow({ email: "" })],
-      [dummyOriginal],
-      0
-    );
-    expect(imported).toHaveLength(1);
+    expect(imported).toHaveLength(0);
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0].reason).toContain("No name");
   });
 
   it("skips rows flagged by AI with _skip: true", () => {
@@ -147,64 +60,93 @@ describe("postProcessRecords", () => {
     expect(skipped[0].reason).toBe("AI says skip");
   });
 
-  // ── Date normalisation ─────────────────────────────────────────────────
+  // ── Email normalisation ──────────────────────────────────────────────────
 
-  it("normalises valid dates to YYYY-MM-DD HH:mm:ss format", () => {
+  it("lowercases email addresses", () => {
     const { imported } = postProcessRecords(
-      [makeRow({ created_at: "2026-05-13T14:20:48Z" })],
+      [makeRow({ email: "Test@Example.COM" })],
       [dummyOriginal],
       0
     );
-    expect(imported[0].created_at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    expect(imported[0].record.email).toBe("test@example.com");
+  });
+
+  // ── Phone normalisation ───────────────────────────────────────────────────
+
+  it("strips non-digit, non-plus characters from phone numbers", () => {
+    const { imported } = postProcessRecords(
+      [makeRow({ phone: "+91 987-654-3210" })],
+      [dummyOriginal],
+      0
+    );
+    expect(imported[0].record.phone).toBe("+919876543210");
+  });
+
+  // ── Gender normalisation ─────────────────────────────────────────────────
+
+  it("normalises common gender shorthands", () => {
+    const mappings: [string, string][] = [
+      ["M", "Male"],
+      ["male", "Male"],
+      ["F", "Female"],
+      ["female", "Female"],
+      ["other", "Other"],
+    ];
+    for (const [input, expected] of mappings) {
+      const { imported } = postProcessRecords(
+        [makeRow({ gender: input })],
+        [dummyOriginal],
+        0
+      );
+      expect(imported[0].record.gender).toBe(expected);
+    }
+  });
+
+  it("passes through unrecognised gender values as-is", () => {
+    const { imported } = postProcessRecords(
+      [makeRow({ gender: "Non-binary custom" })],
+      [dummyOriginal],
+      0
+    );
+    expect(imported[0].record.gender).toBe("Non-binary custom");
+  });
+
+  // ── Date normalisation ────────────────────────────────────────────────────
+
+  it("normalises valid dates to an ISO string", () => {
+    const { imported } = postProcessRecords(
+      [makeRow({ signup_date: "2026-05-13T14:20:48Z" })],
+      [dummyOriginal],
+      0
+    );
+    expect(imported[0].record.signup_date).toBe(
+      new Date("2026-05-13T14:20:48Z").toISOString()
+    );
   });
 
   it("returns empty string for unparseable dates", () => {
     const { imported } = postProcessRecords(
-      [makeRow({ created_at: "not-a-date" })],
+      [makeRow({ signup_date: "not-a-date" })],
       [dummyOriginal],
       0
     );
-    expect(imported[0].created_at).toBe("");
-  });
-
-  // ── Country code normalisation ─────────────────────────────────────────
-
-  it("adds + prefix to country codes missing it", () => {
-    const { imported } = postProcessRecords(
-      [makeRow({ country_code: "91" })],
-      [dummyOriginal],
-      0
-    );
-    expect(imported[0].country_code).toBe("+91");
-  });
-
-  it("keeps + prefix if already present", () => {
-    const { imported } = postProcessRecords(
-      [makeRow({ country_code: "+1" })],
-      [dummyOriginal],
-      0
-    );
-    expect(imported[0].country_code).toBe("+1");
-  });
-
-  // ── Mobile normalisation ───────────────────────────────────────────────
-
-  it("strips non-digit characters from mobile numbers", () => {
-    const { imported } = postProcessRecords(
-      [makeRow({ mobile_without_country_code: "987-654-3210" })],
-      [dummyOriginal],
-      0
-    );
-    expect(imported[0].mobile_without_country_code).toBe("9876543210");
+    expect(imported[0].record.signup_date).toBe("");
   });
 
   // ── Row indexing ───────────────────────────────────────────────────────
 
-  it("uses 1-indexed row numbers for skipped records", () => {
-    const { skipped } = postProcessRecords(
-      [makeRow({ email: "", mobile_without_country_code: "" })],
+  it("uses 1-indexed row numbers for imported and skipped records", () => {
+    const { imported } = postProcessRecords(
+      [makeRow()],
       [dummyOriginal],
       4 // batch start index = 4, so row should be 5 (1-indexed)
+    );
+    expect(imported[0].row_index).toBe(5);
+
+    const { skipped } = postProcessRecords(
+      [makeRow({ email: "" })],
+      [dummyOriginal],
+      4
     );
     expect(skipped[0].row_index).toBe(5);
   });
@@ -213,11 +155,11 @@ describe("postProcessRecords", () => {
 
   it("replaces line breaks in string fields with escaped \\n", () => {
     const { imported } = postProcessRecords(
-      [makeRow({ crm_note: "Line one\nLine two\r\nLine three" })],
+      [makeRow({ name: "Line one\nLine two\r\nLine three" })],
       [dummyOriginal],
       0
     );
-    expect(imported[0].crm_note).not.toContain("\n");
-    expect(imported[0].crm_note).toContain("\\n");
+    expect(imported[0].record.name).not.toContain("\n");
+    expect(imported[0].record.name).toContain("\\n");
   });
 });

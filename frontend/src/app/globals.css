@@ -19,6 +19,14 @@
   --color-text: #4E220F;
   --color-text-muted: #9D6638;
   --color-border: #d8dccb;
+
+  /* Neutral surfaces — derived from the palette above so every "gray" in the
+     app resolves to a value that belongs to this theme instead of Tailwind's
+     default slate/gray scale. */
+  --color-surface-muted: #FAF7EE;
+  --color-surface-hover: #F3EEE0;
+  --color-chip: #F0ECDD;
+  --color-danger-text: #B23A56;
 }
 
 body {
@@ -40,53 +48,12 @@ body {
 
 /* ════════════════════════════════════════════════════════════════════════════
    AI CSV Importer — Component Styles (ge-* prefix)
+
+   Buttons, badges, and generic cards now live in the shared UI kit
+   (src/app/components/ui). What remains here is specific to the importer's
+   multi-step wizard: the drop zone, data preview table, progress bar,
+   metric tiles, and step indicator.
    ════════════════════════════════════════════════════════════════════════════ */
-
-.ge-card {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-}
-
-/* ── Buttons ────────────────────────────────────────────────────────────── */
-
-.ge-btn-primary {
-  background: var(--color-primary);
-  color: white;
-  font-weight: 600;
-  border: none;
-  border-radius: 10px;
-  padding: 12px 28px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 16px rgba(176, 186, 153, 0.3);
-}
-.ge-btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(176, 186, 153, 0.4);
-  background: var(--color-primary-hover);
-}
-.ge-btn-primary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.ge-btn-secondary {
-  background: var(--color-card);
-  color: var(--color-text-muted);
-  font-weight: 500;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 10px 24px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.ge-btn-secondary:hover {
-  background: #f0f0f0;
-  border-color: var(--color-primary);
-  color: var(--color-text);
-}
 
 /* ── Drop zone ──────────────────────────────────────────────────────────── */
 
@@ -209,35 +176,6 @@ body {
   font-weight: 700;
   color: var(--color-text);
   line-height: 1;
-}
-
-/* ── Badge / Pill ───────────────────────────────────────────────────────── */
-
-.ge-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.ge-badge-success {
-  background: var(--color-accent-green-soft);
-  color: var(--color-accent-green);
-}
-.ge-badge-warning {
-  background: var(--color-accent-amber-soft);
-  color: var(--color-accent-amber);
-}
-.ge-badge-error {
-  background: var(--color-accent-rose-soft);
-  color: var(--color-accent-rose);
-}
-.ge-badge-accent {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
 }
 
 /* ── Step indicator ─────────────────────────────────────────────────────── */

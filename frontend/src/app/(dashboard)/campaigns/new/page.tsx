@@ -10,6 +10,7 @@ import {
   updateCampaignStatus,
   type DraftCampaignResponse,
 } from '@/lib/api';
+import { Badge, Button, Card, CardBody, CardFooter, CardHeader } from '@/app/components/ui';
 
 type Step = 'input' | 'segment-review' | 'campaign-draft' | 'done';
 
@@ -34,7 +35,6 @@ export default function NewCampaignPage() {
 
   // ── Data between steps ─────────────────────────────────────────────────
   const [segmentSuggestion, setSegmentSuggestion] = useState<SegmentSuggestion | null>(null);
-  const [savedSegmentId, setSavedSegmentId] = useState<string | null>(null);
   const [draftResult, setDraftResult] = useState<DraftCampaignResponse['data'] | null>(null);
 
   // ── Step 1: AI suggests segment filters ────────────────────────────────
@@ -73,7 +73,6 @@ export default function NewCampaignPage() {
       });
 
       const audienceId = segRes.data.segment.id;
-      setSavedSegmentId(audienceId);
 
       // Draft the campaign with AI
       const draftRes = await draftCampaign({
@@ -167,7 +166,7 @@ export default function NewCampaignPage() {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           className="px-4 py-3 rounded-lg text-sm font-medium"
-          style={{ background: 'var(--color-accent-rose-soft)', color: '#c0392b' }}
+          style={{ background: 'var(--color-accent-rose-soft)', color: 'var(--color-danger-text)' }}
         >
           {error}
         </motion.div>
@@ -185,13 +184,13 @@ export default function NewCampaignPage() {
             className="grid grid-cols-1 lg:grid-cols-2 gap-6"
           >
             {/* Left: Form */}
-            <div className="bg-white rounded-xl border border-[var(--color-border)] flex flex-col">
-              <div className="px-6 py-4 border-b border-[var(--color-border)] bg-gray-50/30">
+            <Card className="flex flex-col">
+              <CardHeader>
                 <h2 className="text-sm font-semibold flex items-center gap-2">
                   <span style={{ color: 'var(--color-primary)' }}>✦</span> Campaign Details
                 </h2>
-              </div>
-              <div className="p-6 flex-1 flex flex-col gap-5">
+              </CardHeader>
+              <CardBody className="flex-1 flex flex-col gap-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Campaign Name</label>
@@ -199,7 +198,7 @@ export default function NewCampaignPage() {
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="bg-white border border-[var(--color-border)] rounded-lg text-sm px-3 py-2.5 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary-soft)] transition-all"
+                      className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg text-sm px-3 py-2.5 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary-soft)] transition-all"
                       placeholder="Summer Win-Back"
                     />
                   </div>
@@ -208,7 +207,7 @@ export default function NewCampaignPage() {
                     <select
                       value={objective}
                       onChange={(e) => setObjective(e.target.value)}
-                      className="bg-white border border-[var(--color-border)] rounded-lg text-sm px-3 py-2.5 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary-soft)] transition-all"
+                      className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg text-sm px-3 py-2.5 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary-soft)] transition-all"
                     >
                       <option>Re-engagement</option>
                       <option>Promotional Broadcast</option>
@@ -225,32 +224,20 @@ export default function NewCampaignPage() {
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    className="flex-1 min-h-[160px] bg-white border border-[var(--color-border)] rounded-lg text-sm p-4 resize-none outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary-soft)] transition-all"
+                    className="flex-1 min-h-[160px] bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg text-sm p-4 resize-none outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary-soft)] transition-all"
                     placeholder="e.g. 'High-spending female customers in Mumbai who bought beauty products in the last 30 days'"
                   />
                 </div>
-              </div>
-              <div className="px-6 py-4 border-t border-[var(--color-border)] bg-gray-50/30 flex justify-end">
-                <button
-                  onClick={handleSuggestSegment}
-                  disabled={loading || !prompt.trim() || !name.trim()}
-                  className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-all shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-                  style={{ background: 'var(--color-primary)' }}
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>✦ Generate Segment</>
-                  )}
-                </button>
-              </div>
-            </div>
+              </CardBody>
+              <CardFooter className="justify-end">
+                <Button onClick={handleSuggestSegment} disabled={loading || !prompt.trim() || !name.trim()} loading={loading}>
+                  {loading ? 'Analyzing...' : <>✦ Generate Segment</>}
+                </Button>
+              </CardFooter>
+            </Card>
 
             {/* Right: Help */}
-            <div className="bg-white rounded-xl border border-[var(--color-border)] p-6 flex flex-col justify-center items-center text-center">
+            <Card className="p-6 flex flex-col justify-center items-center text-center">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 text-2xl" style={{ background: 'var(--color-primary-soft)' }}>
                 ✦
               </div>
@@ -273,7 +260,7 @@ export default function NewCampaignPage() {
                   <p className="text-[10px] font-medium text-[var(--color-text-muted)]">Launch</p>
                 </div>
               </div>
-            </div>
+            </Card>
           </motion.div>
         )}
 
@@ -287,17 +274,12 @@ export default function NewCampaignPage() {
             className="grid grid-cols-1 lg:grid-cols-2 gap-6"
           >
             {/* Segment Details */}
-            <div className="bg-white rounded-xl border border-[var(--color-border)]">
-              <div className="px-6 py-4 border-b border-[var(--color-border)] bg-gray-50/30 flex items-center justify-between">
+            <Card>
+              <CardHeader>
                 <h2 className="text-sm font-semibold">AI-Suggested Segment</h2>
-                <span
-                  className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                  style={{ background: 'var(--color-accent-green-soft)', color: 'var(--color-accent-green)' }}
-                >
-                  {segmentSuggestion.audienceCount} customers matched
-                </span>
-              </div>
-              <div className="p-6 space-y-4">
+                <Badge tone="success">{segmentSuggestion.audienceCount} customers matched</Badge>
+              </CardHeader>
+              <CardBody className="space-y-4">
                 <div className="p-4 rounded-lg" style={{ background: 'var(--color-primary-soft)' }}>
                   <p className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
                     {segmentSuggestion.explanation}
@@ -310,41 +292,26 @@ export default function NewCampaignPage() {
                     {Object.entries(segmentSuggestion.filters)
                       .filter(([, v]) => v !== null && v !== undefined)
                       .map(([key, value]) => (
-                        <div key={key} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+                        <div key={key} className="flex items-center justify-between px-3 py-2 bg-[var(--color-surface-muted)] rounded-lg">
                           <span className="text-xs font-medium text-[var(--color-text-muted)]">{key}</span>
                           <span className="text-xs font-bold">{String(value)}</span>
                         </div>
                       ))}
                   </div>
                 </div>
-              </div>
-              <div className="px-6 py-4 border-t border-[var(--color-border)] bg-gray-50/30 flex justify-between">
-                <button
-                  onClick={() => setStep('input')}
-                  className="text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-                >
+              </CardBody>
+              <CardFooter className="justify-between">
+                <Button variant="ghost" size="sm" onClick={() => setStep('input')}>
                   ← Back
-                </button>
-                <button
-                  onClick={handleConfirmAndDraft}
-                  disabled={loading}
-                  className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-all shadow-sm hover:shadow-md disabled:opacity-40 flex items-center gap-2"
-                  style={{ background: 'var(--color-primary)' }}
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Drafting Campaign...
-                    </>
-                  ) : (
-                    'Confirm & Draft Campaign →'
-                  )}
-                </button>
-              </div>
-            </div>
+                </Button>
+                <Button onClick={handleConfirmAndDraft} disabled={loading} loading={loading}>
+                  {loading ? 'Drafting Campaign...' : 'Confirm & Draft Campaign →'}
+                </Button>
+              </CardFooter>
+            </Card>
 
             {/* Preview card */}
-            <div className="bg-white rounded-xl border border-[var(--color-border)] p-6 flex flex-col items-center justify-center text-center">
+            <Card className="p-6 flex flex-col items-center justify-center text-center">
               <div className="w-24 h-24 rounded-2xl flex items-center justify-center mb-4 text-4xl font-bold" style={{ background: 'var(--color-accent-green-soft)', color: 'var(--color-accent-green)' }}>
                 {segmentSuggestion.audienceCount}
               </div>
@@ -352,7 +319,7 @@ export default function NewCampaignPage() {
               <p className="text-xs max-w-xs" style={{ color: 'var(--color-text-muted)' }}>
                 This segment will be saved and the AI copilot will draft a personalized campaign for this audience.
               </p>
-            </div>
+            </Card>
           </motion.div>
         )}
 
@@ -366,17 +333,12 @@ export default function NewCampaignPage() {
             className="grid grid-cols-1 lg:grid-cols-2 gap-6"
           >
             {/* Draft Details */}
-            <div className="bg-white rounded-xl border border-[var(--color-border)]">
-              <div className="px-6 py-4 border-b border-[var(--color-border)] bg-gray-50/30 flex items-center justify-between">
+            <Card>
+              <CardHeader>
                 <h2 className="text-sm font-semibold">AI Campaign Draft</h2>
-                <span
-                  className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                  style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}
-                >
-                  Draft Ready
-                </span>
-              </div>
-              <div className="p-6 space-y-4">
+                <Badge tone="primary">Draft Ready</Badge>
+              </CardHeader>
+              <CardBody className="space-y-4">
                 <div>
                   <h3 className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5">AI Rationale</h3>
                   <p className="text-sm leading-relaxed">{draftResult.aiExplanation}</p>
@@ -396,39 +358,24 @@ export default function NewCampaignPage() {
                     <p className="text-[10px] font-medium text-[var(--color-text-muted)]">Revenue</p>
                   </div>
                 </div>
-              </div>
-              <div className="px-6 py-4 border-t border-[var(--color-border)] bg-gray-50/30 flex justify-between">
-                <button
-                  onClick={() => setStep('segment-review')}
-                  className="text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-                >
+              </CardBody>
+              <CardFooter className="justify-between">
+                <Button variant="ghost" size="sm" onClick={() => setStep('segment-review')}>
                   ← Back
-                </button>
-                <button
-                  onClick={handleExecute}
-                  disabled={loading}
-                  className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-all shadow-sm hover:shadow-md disabled:opacity-40 flex items-center gap-2"
-                  style={{ background: 'var(--color-accent-green)' }}
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Scheduling...
-                    </>
-                  ) : (
-                    '🚀 Schedule & Execute'
-                  )}
-                </button>
-              </div>
-            </div>
+                </Button>
+                <Button variant="success" onClick={handleExecute} disabled={loading} loading={loading}>
+                  {loading ? 'Scheduling...' : '🚀 Schedule & Execute'}
+                </Button>
+              </CardFooter>
+            </Card>
 
             {/* Message Preview */}
-            <div className="bg-white rounded-xl border border-[var(--color-border)] flex flex-col">
-              <div className="px-6 py-4 border-b border-[var(--color-border)] bg-gray-50/30">
+            <Card className="flex flex-col">
+              <CardHeader>
                 <h2 className="text-sm font-semibold">Message Preview</h2>
-              </div>
+              </CardHeader>
               <div className="flex-1 p-6 flex items-center justify-center" style={{ background: 'var(--color-bg)' }}>
-                <div className="w-full max-w-sm bg-white rounded-2xl border border-[var(--color-border)] shadow-sm overflow-hidden">
+                <div className="w-full max-w-sm bg-[var(--color-card)] rounded-2xl border border-[var(--color-border)] shadow-sm overflow-hidden">
                   <div className="px-5 py-3 flex items-center justify-between" style={{ background: 'var(--color-primary)' }}>
                     <span className="text-xs font-bold text-white uppercase tracking-wider">{draftResult.campaign.channel}</span>
                     <span className="text-white/60 text-xs">Preview</span>
@@ -438,25 +385,22 @@ export default function NewCampaignPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </Card>
           </motion.div>
         )}
 
         {/* ── DONE ──────────────────────────────────────────────────────── */}
         {step === 'done' && (
-          <motion.div
-            key="done"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl border border-[var(--color-border)] p-12 text-center"
-          >
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl" style={{ background: 'var(--color-accent-green-soft)' }}>
-              ✓
-            </div>
-            <h2 className="text-xl font-bold mb-2">Campaign Scheduled!</h2>
-            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-              Redirecting to campaign analytics...
-            </p>
+          <motion.div key="done" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+            <Card className="p-12 text-center">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl" style={{ background: 'var(--color-accent-green-soft)' }}>
+                ✓
+              </div>
+              <h2 className="text-xl font-bold mb-2">Campaign Scheduled!</h2>
+              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Redirecting to campaign analytics...
+              </p>
+            </Card>
           </motion.div>
         )}
       </AnimatePresence>

@@ -2,8 +2,6 @@
 
 A full-stack, AI-native CRM platform that helps D2C brands **decide who to talk to, what to say, and reach them** across WhatsApp, SMS, Email, and RCS.
 
-Built for the Xeno Engineering Internship Assignment 2026.
-
 ---
 
 ## Architecture Overview
