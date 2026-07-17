@@ -353,7 +353,7 @@ Open `http://localhost:3000` to access the CRM dashboard.
 ```
 ├── Backend/                    # CRM API server (port 3001)
 │   ├── Prisma/
-│   │   ├── schema.prisma       # 10-model relational schema (Organization, User, Customer, etc.)
+│   │   ├── schema.prisma       # 13-model relational schema (Organization, User, Customer, Journey, etc.)
 │   │   └── seed.ts             # Persona-driven realistic data generator + default org/user
 │   └── src/
 │       ├── config/             # Prisma singleton
