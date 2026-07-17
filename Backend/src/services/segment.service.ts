@@ -271,13 +271,15 @@ export class SegmentService {
   async saveSegment(
     name: string,
     filters: SegmentDefinition,
-    createdBy: string
+    createdBy: string,
+    organizationId?: string
   ): Promise<Segment> {
     return prisma.segment.create({
       data: {
         name,
         definition: filters as Prisma.InputJsonValue,
         createdBy,
+        ...(organizationId && { organizationId }),
       },
     });
   }
@@ -285,11 +287,12 @@ export class SegmentService {
   async evaluateAndSave(
     name: string,
     filters: SegmentDefinition,
-    createdBy: string
+    createdBy: string,
+    organizationId?: string
   ): Promise<{ segment: Segment; audienceCount: number }> {
     const [{ count }, segment] = await Promise.all([
       this.evaluateSegment(filters),
-      this.saveSegment(name, filters, createdBy),
+      this.saveSegment(name, filters, createdBy, organizationId),
     ]);
     return { segment, audienceCount: count };
   }

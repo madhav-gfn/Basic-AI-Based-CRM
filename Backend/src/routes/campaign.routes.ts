@@ -4,6 +4,9 @@ import {
   getCampaigns,
   getCampaignById,
   updateCampaignStatus,
+  addVariant,
+  getVariants,
+  deleteVariant,
 } from "../controllers/campaign.controller";
 import { AnalyticsController } from "../controllers/analytics.controller";
 
@@ -17,6 +20,11 @@ router.get("/", getCampaigns);
 
 // GET /api/campaigns/:id/analytics
 router.get("/:id/analytics", AnalyticsController.getAnalytics);
+
+// ── A/B Variants ─────────────────────────────────────────────────────────────
+router.post("/:id/variants", addVariant);
+router.get("/:id/variants", getVariants);
+router.delete("/:id/variants/:variantId", deleteVariant);
 
 // GET /api/campaigns/:id
 router.get("/:id", getCampaignById);

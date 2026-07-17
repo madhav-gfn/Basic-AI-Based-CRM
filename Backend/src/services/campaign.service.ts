@@ -1,5 +1,5 @@
 import { prisma } from "../config/database";
-import { Prisma, Campaign, CampaignStatus, Channel } from "@prisma/client";
+import { Prisma, Campaign, CampaignStatus, CampaignVariant, Channel, ConsentStatus } from "@prisma/client";
 import { segmentService } from "./segment.service";
 import { aiCampaignService, type AudienceMetrics } from "./AICampaign.service";
 import type { SegmentFilters } from "./segment.service";
@@ -114,7 +114,8 @@ export class CampaignService {
   async draftAICampaign(
     name: string,
     objective: string,
-    audienceId: string
+    audienceId: string,
+    organizationId?: string
   ): Promise<DraftCampaignResult> {
     // ── Step 1: Load the segment ─────────────────────────────────────────────
     const segment = await prisma.segment.findUnique({
@@ -130,8 +131,10 @@ export class CampaignService {
     const filters = segment.definition as unknown as SegmentFilters;
     const segmentWhere = await segmentService.buildPrismaWhereClause(filters);
 
+    // Exclude opted-out customers so metrics reflect the reachable audience,
+    // matching what ExecutionService will actually dispatch to.
     const matchingCustomers = await prisma.customer.findMany({
-      where: segmentWhere,
+      where: { AND: [segmentWhere, { consentStatus: { not: ConsentStatus.OPTED_OUT } }] },
       select: { id: true }, // only IDs needed — minimal data transfer
     });
 
@@ -163,6 +166,7 @@ export class CampaignService {
         // Store AI-generated copy on the campaign for the marketer to review
         // before it is fanned out to individual Communication records.
         message,
+        ...(organizationId && { organizationId }),
       },
     });
 
@@ -178,8 +182,9 @@ export class CampaignService {
    * Returns all campaigns, most recently created first,
    * with their audience segment name included for display.
    */
-  async getCampaigns(): Promise<Campaign[]> {
+  async getCampaigns(organizationId?: string): Promise<Campaign[]> {
     return prisma.campaign.findMany({
+      where: organizationId ? { organizationId } : {},
       orderBy: { createdAt: "desc" },
       include: { audience: { select: { name: true } } },
     });
@@ -190,7 +195,7 @@ export class CampaignService {
    * Returns a single campaign with its full audience segment and
    * a summary of communication delivery stats.
    */
-  async getCampaignById(id: string): Promise<Campaign | null> {
+  async getCampaignById(id: string, organizationId?: string): Promise<Campaign | null> {
     const campaign = await prisma.campaign.findUnique({
       where: { id },
       include: {
@@ -198,10 +203,16 @@ export class CampaignService {
         communications: {
           select: { status: true },
         },
+        variants: true,
       },
     });
 
     if (!campaign) {
+      throw new Error(`Campaign not found: "${id}".`);
+    }
+
+    // Org guard: if caller is scoped to an org, verify this campaign belongs to it.
+    if (organizationId && campaign.organizationId && campaign.organizationId !== organizationId) {
       throw new Error(`Campaign not found: "${id}".`);
     }
 
@@ -264,6 +275,47 @@ export class CampaignService {
           }),
       },
     });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // A/B Variant CRUD
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  async addVariant(
+    campaignId: string,
+    input: { label: string; message: string; weight?: number }
+  ): Promise<CampaignVariant> {
+    // Verify campaign exists
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { id: true, status: true },
+    });
+    if (!campaign) throw new Error(`Campaign not found: "${campaignId}".`);
+    if (campaign.status !== CampaignStatus.DRAFT && campaign.status !== CampaignStatus.SCHEDULED) {
+      throw new Error("Variants can only be added to DRAFT or SCHEDULED campaigns.");
+    }
+
+    return prisma.campaignVariant.create({
+      data: {
+        campaignId,
+        label: input.label.trim(),
+        message: input.message,
+        weight: input.weight ?? 1,
+      },
+    });
+  }
+
+  async getVariants(campaignId: string): Promise<CampaignVariant[]> {
+    return prisma.campaignVariant.findMany({
+      where: { campaignId },
+      orderBy: { label: "asc" },
+    });
+  }
+
+  async deleteVariant(variantId: string): Promise<void> {
+    const variant = await prisma.campaignVariant.findUnique({ where: { id: variantId } });
+    if (!variant) throw new Error(`Variant not found: "${variantId}".`);
+    await prisma.campaignVariant.delete({ where: { id: variantId } });
   }
 }
 

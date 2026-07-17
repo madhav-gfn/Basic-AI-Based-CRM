@@ -5,7 +5,9 @@ import { prisma } from "../config/database";
 
 export async function getAllSegments(req: Request, res: Response, next: NextFunction) {
   try {
+    const orgId = req.auth?.organizationId;
     const segments = await prisma.segment.findMany({
+      where: orgId ? { organizationId: orgId } : {},
       orderBy: { createdAt: "desc" },
     });
     sendSuccess(res, segments);
@@ -40,7 +42,8 @@ export async function createSegment(req: Request, res: Response, next: NextFunct
     const result = await segmentService.evaluateAndSave(
       name,
       filters,
-      createdBy ?? "admin"
+      createdBy ?? req.auth?.email ?? "admin",
+      req.auth?.organizationId
     );
 
     sendSuccess(res, result, "Segment created successfully", 201);

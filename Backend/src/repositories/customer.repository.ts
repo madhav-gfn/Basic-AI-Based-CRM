@@ -120,6 +120,113 @@ export class CustomerRepository {
       lifetimeSpend: g._sum.orderValue ?? 0,
     }));
   }
+
+  /**
+   * searchCustomers
+   *
+   * Free-text + faceted search over the customer base. Matches `q` against
+   * name/email/city (case-insensitive), and optionally filters by city, gender,
+   * or a tag. Paginated and index-backed on the filter columns.
+   */
+  async searchCustomers(params: {
+    q?: string;
+    city?: string;
+    gender?: string;
+    tag?: string;
+    page: number;
+    limit: number;
+  }): Promise<{ customers: Prisma.CustomerGetPayload<{ include: { _count: { select: { orders: true } } } }>[]; total: number }> {
+    const { q, city, gender, tag, page, limit } = params;
+
+    const and: Prisma.CustomerWhereInput[] = [];
+
+    if (q?.trim()) {
+      const term = q.trim();
+      and.push({
+        OR: [
+          { name: { contains: term, mode: "insensitive" } },
+          { email: { contains: term, mode: "insensitive" } },
+          { city: { contains: term, mode: "insensitive" } },
+        ],
+      });
+    }
+    if (city?.trim()) and.push({ city: { equals: city.trim(), mode: "insensitive" } });
+    if (gender?.trim()) and.push({ gender: { equals: gender.trim(), mode: "insensitive" } });
+    if (tag?.trim()) and.push({ tags: { has: tag.trim() } });
+
+    const where: Prisma.CustomerWhereInput = and.length > 0 ? { AND: and } : {};
+
+    const [customers, total] = await Promise.all([
+      prisma.customer.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { signupDate: "desc" },
+        include: { _count: { select: { orders: true } } },
+      }),
+      prisma.customer.count({ where }),
+    ]);
+
+    return { customers, total };
+  }
+
+  /**
+   * getCustomerActivity
+   *
+   * A unified, reverse-chronological activity timeline for a customer: their
+   * orders and the campaign communications they received, merged into one feed.
+   */
+  async getCustomerActivity(
+    customerId: string,
+    limit = 50
+  ): Promise<
+    {
+      type: "order" | "communication";
+      timestamp: Date;
+      title: string;
+      detail: string;
+      status?: string;
+    }[]
+  > {
+    const exists = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { id: true },
+    });
+    if (!exists) throw new Error(`Customer not found: ${customerId}`);
+
+    const [orders, communications] = await Promise.all([
+      prisma.order.findMany({
+        where: { customerId },
+        orderBy: { orderDate: "desc" },
+        take: limit,
+      }),
+      prisma.communication.findMany({
+        where: { customerId },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        include: { campaign: { select: { name: true } } },
+      }),
+    ]);
+
+    const feed = [
+      ...orders.map((o) => ({
+        type: "order" as const,
+        timestamp: o.orderDate,
+        title: `Order · ${o.category}`,
+        detail: `₹${o.orderValue.toLocaleString("en-IN")}`,
+      })),
+      ...communications.map((c) => ({
+        type: "communication" as const,
+        timestamp: c.createdAt,
+        title: `Campaign · ${c.campaign.name}`,
+        detail: `${c.channel} message`,
+        status: c.status,
+      })),
+    ];
+
+    feed.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return feed.slice(0, limit);
+  }
 }
 
 // Export a singleton so every controller shares the same instance
