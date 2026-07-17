@@ -1,7 +1,7 @@
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
 const browserOrigin =
   typeof window !== 'undefined' ? window.location.origin : undefined;
-const localBackendHost = 'http://localhost:3004';
+const localBackendHost = 'http://localhost:3001';
 
 const API_URL = rawApiUrl
   ? rawApiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "") + '/api'
@@ -24,12 +24,38 @@ function buildApiUrl(path: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Auth Token Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TOKEN_KEY = 'moda_auth_token';
+
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setAuthToken(token: string | null): void {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Generic fetcher
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+
   const res = await fetch(buildApiUrl(path), {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...options,
   });
 
@@ -73,6 +99,8 @@ export interface Customer {
   gender: string | null;
   city: string | null;
   signupDate: string;
+  consentStatus?: 'OPTED_IN' | 'OPTED_OUT' | 'UNKNOWN';
+  tags?: string[];
   _count?: { orders: number };
 }
 
@@ -252,11 +280,31 @@ export interface CampaignInsights {
   recommendedAction: string;
 }
 
+export interface VariantMetrics {
+  variantId: string;
+  label: string;
+  audienceSize: number;
+  counts: {
+    sent: number;
+    delivered: number;
+    opened: number;
+    read: number;
+    clicked: number;
+    failed: number;
+  };
+  rates: {
+    deliveredRate: number;
+    openedRate: number;
+    clickedRate: number;
+  };
+}
+
 export interface AnalyticsResponse {
   success: boolean;
   data: {
     metrics: CampaignMetrics;
     insights: CampaignInsights | null;
+    variantBreakdown: VariantMetrics[];
   };
 }
 
@@ -386,4 +434,179 @@ export async function importCSVChunk(payload: ChunkPayload): Promise<ImportRespo
   }
 
   return res.json();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Message Templates
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface MessageTemplate {
+  id: string;
+  name: string;
+  channel: string;
+  body: string;
+  description: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  tokens?: string[];
+}
+
+export async function getTemplates(channel?: string): Promise<{ success: boolean; data: MessageTemplate[] }> {
+  const qs = channel ? `?channel=${encodeURIComponent(channel)}` : '';
+  return apiFetch(`/templates${qs}`);
+}
+
+export async function createTemplate(payload: {
+  name: string;
+  channel: string;
+  body: string;
+  description?: string;
+}): Promise<{ success: boolean; data: MessageTemplate }> {
+  return apiFetch('/templates', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateTemplate(
+  id: string,
+  payload: Partial<{ name: string; channel: string; body: string; description: string }>
+): Promise<{ success: boolean; data: MessageTemplate }> {
+  return apiFetch(`/templates/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export async function deleteTemplate(id: string): Promise<{ success: boolean }> {
+  return apiFetch(`/templates/${id}`, { method: 'DELETE' });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Customer search & activity
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function searchCustomers(params: {
+  q?: string;
+  city?: string;
+  gender?: string;
+  tag?: string;
+  page?: number;
+  limit?: number;
+}): Promise<CustomersResponse> {
+  const qs = new URLSearchParams();
+  if (params.q) qs.set('q', params.q);
+  if (params.city) qs.set('city', params.city);
+  if (params.gender) qs.set('gender', params.gender);
+  if (params.tag) qs.set('tag', params.tag);
+  qs.set('page', String(params.page ?? 1));
+  qs.set('limit', String(params.limit ?? 20));
+  return apiFetch(`/customers/search?${qs.toString()}`);
+}
+
+export interface ActivityEntry {
+  type: 'order' | 'communication';
+  timestamp: string;
+  title: string;
+  detail: string;
+  status?: string;
+}
+
+export async function getCustomerActivity(
+  id: string,
+  limit = 50
+): Promise<{ success: boolean; data: ActivityEntry[] }> {
+  return apiFetch(`/customers/${id}/activity?limit=${limit}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Consent
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function updateConsent(
+  customerId: string,
+  consentStatus: 'OPTED_IN' | 'OPTED_OUT' | 'UNKNOWN'
+): Promise<{ success: boolean; data: Customer }> {
+  return apiFetch(`/consent/${customerId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ consentStatus }),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AuthResponse {
+  success: boolean;
+  data: {
+    token: string;
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      organizationId: string;
+    };
+  };
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const res = await apiFetch<AuthResponse>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  if (res.data?.token) setAuthToken(res.data.token);
+  return res;
+}
+
+export async function register(data: {
+  email: string;
+  password: string;
+  name: string;
+  organizationName: string;
+}): Promise<AuthResponse> {
+  const res = await apiFetch<AuthResponse>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (res.data?.token) setAuthToken(res.data.token);
+  return res;
+}
+
+export async function getMe(): Promise<{ success: boolean; data: AuthResponse['data']['user'] }> {
+  return apiFetch('/auth/me');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Campaign Variants
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CampaignVariant {
+  id: string;
+  campaignId: string;
+  label: string;
+  message: string;
+  weight: number;
+  createdAt: string;
+}
+
+export async function getCampaignVariants(
+  campaignId: string
+): Promise<{ success: boolean; data: CampaignVariant[] }> {
+  return apiFetch(`/campaigns/${campaignId}/variants`);
+}
+
+export async function addCampaignVariant(
+  campaignId: string,
+  payload: { label: string; message: string; weight?: number }
+): Promise<{ success: boolean; data: CampaignVariant }> {
+  return apiFetch(`/campaigns/${campaignId}/variants`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteCampaignVariant(
+  campaignId: string,
+  variantId: string
+): Promise<{ success: boolean }> {
+  return apiFetch(`/campaigns/${campaignId}/variants/${variantId}`, {
+    method: 'DELETE',
+  });
 }
