@@ -204,7 +204,10 @@ export class CustomerRepository {
         where: { customerId },
         orderBy: { createdAt: "desc" },
         take: limit,
-        include: { campaign: { select: { name: true } } },
+        include: {
+          campaign: { select: { name: true } },
+          journeyStep: { select: { journey: { select: { name: true } } } },
+        },
       }),
     ]);
 
@@ -218,7 +221,11 @@ export class CustomerRepository {
       ...communications.map((c) => ({
         type: "communication" as const,
         timestamp: c.createdAt,
-        title: `Campaign · ${c.campaign.name}`,
+        // A Communication originates from exactly one of a Campaign blast or
+        // a Journey step (see schema.prisma) — label accordingly.
+        title: c.campaign
+          ? `Campaign · ${c.campaign.name}`
+          : `Journey · ${c.journeyStep?.journey.name ?? "Unknown"}`,
         detail: `${c.channel} message`,
         status: c.status,
       })),

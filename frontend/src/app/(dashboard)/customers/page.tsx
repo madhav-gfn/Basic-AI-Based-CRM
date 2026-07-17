@@ -1,17 +1,38 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { uploadCustomersCsv, uploadOrdersCsv, type Customer, type IngestionResponse } from '@/lib/api';
-import { useCustomers } from '@/lib/hooks';
+import { useCustomers, useCustomerSearch } from '@/lib/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, CardBody, CardFooter, CardHeader, Modal, Spinner } from '@/app/components/ui';
+import type { Tone } from '@/lib/constants';
 
 type UploadResult = IngestionResponse['data'];
 
+const CONSENT_TONE: Record<string, Tone> = {
+  OPTED_IN: 'success',
+  OPTED_OUT: 'danger',
+  UNKNOWN: 'neutral',
+};
+
+const INPUT_CLASS =
+  'bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg text-sm px-3 py-2 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary-soft)] transition-all';
+
 export default function CustomersPage() {
   const [page, setPage] = useState(1);
-  const { data: res, isLoading: loading } = useCustomers(page, 20);
+
+  // ── Search / filter state ────────────────────────────────────────────────
+  const [q, setQ] = useState('');
+  const [city, setCity] = useState('');
+  const [gender, setGender] = useState('');
+  const searchActive = useMemo(() => !!(q || city || gender), [q, city, gender]);
+
+  const paginated = useCustomers(page, 20);
+  const searched = useCustomerSearch({ q: q || undefined, city: city || undefined, gender: gender || undefined, limit: 50 });
+
+  const { data: res, isLoading: loading } = searchActive ? searched : paginated;
   const queryClient = useQueryClient();
 
   const customers: Customer[] = res?.data?.customers ?? [];
@@ -38,6 +59,7 @@ export default function CustomersPage() {
         : await uploadOrdersCsv(uploadFile);
       setUploadResult(res.data);
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-search'] });
     } catch (err: any) {
       setUploadError(err.message || 'Failed to upload CSV');
     } finally {
@@ -53,16 +75,50 @@ export default function CustomersPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const clearFilters = () => {
+    setQ('');
+    setCity('');
+    setGender('');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
-            {total.toLocaleString()} customers in the database.
+            {total.toLocaleString()} customer{total !== 1 ? 's' : ''} {searchActive ? 'matching filters' : 'in the database'}.
           </p>
         </div>
         <Button onClick={() => setIsUploadModalOpen(true)}>Upload CSV</Button>
+      </div>
+
+      {/* Search / filter bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by name, email, or city…"
+          className={`${INPUT_CLASS} flex-1 min-w-[220px]`}
+        />
+        <select value={city} onChange={(e) => setCity(e.target.value)} className={INPUT_CLASS}>
+          <option value="">All cities</option>
+          {['Delhi', 'Mumbai', 'Bangalore', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata'].map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        <select value={gender} onChange={(e) => setGender(e.target.value)} className={INPUT_CLASS}>
+          <option value="">All genders</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+        {searchActive && (
+          <button onClick={clearFilters} className="text-xs font-medium" style={{ color: 'var(--color-primary)' }}>
+            Clear filters
+          </button>
+        )}
       </div>
 
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
@@ -75,20 +131,31 @@ export default function CustomersPage() {
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">City</th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Gender</th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Orders</th>
+                <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Consent</th>
                 <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Joined</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-6 py-12 text-center">
                     <Spinner size={24} className="mx-auto" />
+                  </td>
+                </tr>
+              ) : customers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    No customers match these filters.
                   </td>
                 </tr>
               ) : (
                 customers.map((c) => (
                   <tr key={c.id} className="transition-colors hover:bg-[var(--color-surface-hover)]">
-                    <td className="px-6 py-3.5 font-medium">{c.name}</td>
+                    <td className="px-6 py-3.5 font-medium">
+                      <Link href={`/customers/${c.id}`} className="hover:text-[var(--color-primary)] transition-colors">
+                        {c.name}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3.5 text-[var(--color-text-muted)]">{c.email}</td>
                     <td className="px-4 py-3.5">
                       {c.city ? <Badge tone="neutral" uppercase={false}>{c.city}</Badge> : '—'}
@@ -97,6 +164,11 @@ export default function CustomersPage() {
                     <td className="px-4 py-3.5">
                       <Badge tone={(c._count?.orders ?? 0) > 5 ? 'success' : 'primary'} uppercase={false}>
                         {c._count?.orders ?? 0}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <Badge tone={CONSENT_TONE[c.consentStatus ?? 'UNKNOWN']} uppercase={false}>
+                        {c.consentStatus === 'OPTED_OUT' ? 'Opted out' : c.consentStatus === 'OPTED_IN' ? 'Opted in' : 'Unknown'}
                       </Badge>
                     </td>
                     <td className="px-4 py-3.5 text-xs text-[var(--color-text-muted)]">
@@ -108,20 +180,22 @@ export default function CustomersPage() {
             </tbody>
           </table>
 
-          {/* Pagination */}
-          <div className="px-6 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface-muted)] flex items-center justify-between">
-            <p className="text-xs text-[var(--color-text-muted)]">
-              Page {page} of {totalPages}
-            </p>
-            <div className="flex gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setPage(page - 1)} disabled={page <= 1}>
-                ← Prev
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setPage(page + 1)} disabled={page >= totalPages}>
-                Next →
-              </Button>
+          {/* Pagination — only meaningful for the unfiltered list */}
+          {!searchActive && (
+            <div className="px-6 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface-muted)] flex items-center justify-between">
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setPage(page - 1)} disabled={page <= 1}>
+                  ← Prev
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setPage(page + 1)} disabled={page >= totalPages}>
+                  Next →
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </Card>
       </motion.div>
 

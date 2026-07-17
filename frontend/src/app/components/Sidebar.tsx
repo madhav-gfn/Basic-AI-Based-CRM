@@ -1,41 +1,24 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
+import { useAuth } from '@/lib/auth-context';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: '/dashboard.png' },
   { href: '/campaigns', label: 'Campaigns', icon: '/campaign.png' },
   { href: '/campaigns/new', label: 'Create Campaign', icon: '/Create_campaign.png' },
+  { href: '/journeys', label: 'Journeys', icon: '/revenue.png' },
   { href: '/segments', label: 'Segments', icon: '/segment.png' },
+  { href: '/templates', label: 'Templates', icon: '/segment.png' },
   { href: '/customers', label: 'Customers', icon: '/customers.png' },
   { href: '/import', label: 'AI CSV Import', icon: '/orders.png' },
 ];
 
 const COLLAPSED_STORAGE_KEY = 'sidebar-collapsed';
-
-/** Tiny external store so the collapsed flag stays in sync with localStorage
- * (and across multiple mounts) without setting state inside an effect. */
-const collapsedStore = {
-  listeners: new Set<() => void>(),
-  subscribe(callback: () => void) {
-    collapsedStore.listeners.add(callback);
-    return () => collapsedStore.listeners.delete(callback);
-  },
-  getSnapshot() {
-    return window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true';
-  },
-  getServerSnapshot() {
-    return false;
-  },
-  set(value: boolean) {
-    window.localStorage.setItem(COLLAPSED_STORAGE_KEY, String(value));
-    collapsedStore.listeners.forEach((listener) => listener());
-  },
-};
 
 /** Longest matching href wins, so nested routes (e.g. /campaigns/new) never
  * light up their parent (/campaigns) at the same time. */
@@ -54,13 +37,22 @@ function findActiveHref(pathname: string): string | undefined {
 export default function Sidebar() {
   const pathname = usePathname();
   const activeHref = findActiveHref(pathname);
-  const collapsed = useSyncExternalStore(
-    collapsedStore.subscribe,
-    collapsedStore.getSnapshot,
-    collapsedStore.getServerSnapshot
-  );
+  const { user, isLoading: authLoading, logout } = useAuth();
 
-  const toggleCollapsed = () => collapsedStore.set(!collapsed);
+  // Start with false (matches SSR), then sync from localStorage after mount
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true');
+  }, []);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      window.localStorage.setItem(COLLAPSED_STORAGE_KEY, String(next));
+      return next;
+    });
+  }, []);
 
   return (
     <aside
@@ -77,8 +69,7 @@ export default function Sidebar() {
           onClick={toggleCollapsed}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-pressed={!collapsed}
-          className="shrink-0 p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text)]
-            hover:bg-[var(--color-surface-hover)] transition-colors duration-150"
+          className="shrink-0 p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors duration-150"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path d="M2.5 5.5h15M2.5 10h15M2.5 14.5h15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -125,6 +116,53 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Auth footer */}
+      <div className={cn('px-3 py-4 border-t border-[var(--color-border)]', collapsed && 'px-2')}>
+        {!authLoading && user ? (
+          <div className={cn('flex items-center gap-2.5', collapsed && 'flex-col')}>
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
+              style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}
+              title={user.name}
+            >
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            {!collapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold truncate">{user.name}</p>
+                <p className="text-[10px] truncate" style={{ color: 'var(--color-text-muted)' }}>{user.email}</p>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={logout}
+              aria-label="Sign out"
+              title="Sign out"
+              className="shrink-0 p-1.5 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M7.5 17.5H4.5a1 1 0 01-1-1v-13a1 1 0 011-1h3M13.5 14l4-4-4-4M17.5 10h-10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        ) : !authLoading ? (
+          <Link
+            href="/login"
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+              collapsed && 'justify-center',
+              'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]'
+            )}
+          >
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true" className="shrink-0">
+              <path d="M7.5 17.5H4.5a1 1 0 01-1-1v-13a1 1 0 011-1h3M13.5 14l4-4-4-4M17.5 10h-10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" transform="rotate(180 10 10)" />
+            </svg>
+            {!collapsed && <span>Sign In</span>}
+          </Link>
+        ) : null}
+      </div>
     </aside>
   );
 }

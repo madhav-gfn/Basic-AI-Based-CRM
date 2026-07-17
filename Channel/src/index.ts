@@ -7,7 +7,8 @@ import { randomUUID } from "crypto";
 // Config
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PORT = process.env.PORT ?? 3002;
+// Local dev default is 3004; Render injects its own PORT in production.
+const PORT = process.env.PORT ?? 3004;
 const CRM_RECEIPT_URL =
   process.env.CRM_RECEIPT_URL?.trim().replace(/\/+$/, "") ??
   "http://localhost:3001/api/webhooks/receipt";

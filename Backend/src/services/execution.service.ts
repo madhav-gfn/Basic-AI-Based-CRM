@@ -3,17 +3,13 @@ import {
   CampaignStatus,
   CommunicationStatus,
   ConsentStatus,
-  type Communication,
 } from "@prisma/client";
 import { segmentService, type SegmentDefinition } from "../services/segment.service";
+import { chunkArray, renderMessage, dispatchChunk } from "./dispatch.util";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────────────────────────────────────
-
-const CHANNEL_URL =
-  process.env.CHANNEL_SERVICE_URL ??
-  "http://localhost:3002";
 
 const CHUNK_SIZE = 50; // communications dispatched per concurrent batch
 
@@ -48,95 +44,6 @@ function isWithinQuietHours(now: Date): boolean {
 
   // Overnight window (22 → 8) wraps midnight; daytime window (1 → 5) does not.
   return start > end ? hour >= start || hour < end : hour >= start && hour < end;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface DispatchPayload {
-  communication_id: string; // our Prisma ID — simulator echoes it in callbacks
-  customer_id: string;
-  campaign_id: string;
-  channel: string;
-  message: string;
-}
-
-type DispatchOutcome =
-  | { status: "fulfilled"; communicationId: string }
-  | { status: "rejected"; communicationId: string; reason: string };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Splits an array into sequential chunks of a given size. */
-function chunkArray<T>(arr: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
-}
-
-/**
- * Renders a campaign message template for a single customer.
- * Substitutes {name}, {city}, {email} tokens (case-insensitive) with the
- * customer's own values. Unknown tokens are stripped so no customer ever
- * receives a literal "{name}". Missing values fall back to a friendly default.
- */
-function renderMessage(
-  template: string,
-  customer: { name: string; city: string | null; email: string }
-): string {
-  const values: Record<string, string> = {
-    name: customer.name?.trim() || "there",
-    city: customer.city?.trim() || "your city",
-    email: customer.email,
-  };
-
-  return template.replace(/\{\s*(\w+)\s*\}/g, (_match, token: string) => {
-    const key = token.toLowerCase();
-    return key in values ? values[key] : "";
-  });
-}
-
-/**
- * Dispatches a single chunk of communications concurrently.
- * Uses Promise.allSettled — one failed request does NOT abort the rest.
- */
-async function dispatchChunk(
-  communications: Communication[]
-): Promise<DispatchOutcome[]> {
-  const settled = await Promise.allSettled(
-    communications.map(async (comm) => {
-      const payload: DispatchPayload = {
-        communication_id: comm.id,
-        customer_id:      comm.customerId,
-        campaign_id:      comm.campaignId,
-        channel:          comm.channel,
-        message:          comm.message,
-      };
-
-      const res = await fetch(`${CHANNEL_URL}/simulator/send`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Channel returned HTTP ${res.status} for comm ${comm.id}`);
-      }
-
-      return comm.id;
-    })
-  );
-
-  return settled.map((result, i) =>
-    result.status === "fulfilled"
-      ? { status: "fulfilled", communicationId: result.value }
-      : { status: "rejected",  communicationId: communications[i].id, reason: String(result.reason) }
-  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -327,7 +234,7 @@ export class ExecutionService {
           `(${chunk.length} comms) for campaign ${campaignId}`
         );
 
-        const outcomes = await dispatchChunk(chunk);
+        const outcomes = await dispatchChunk(chunk, campaignId);
 
         for (const outcome of outcomes) {
           if (outcome.status === "fulfilled") {

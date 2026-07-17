@@ -10,6 +10,9 @@ import {
   CommunicationStatus,
   EventType,
   UserRole,
+  JourneyStatus,
+  JourneyTriggerType,
+  EnrollmentStatus,
 } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -55,6 +58,10 @@ function randomFrom<T>(arr: T[]): T {
 
 function randomFloat(min: number, max: number) {
   return parseFloat((Math.random() * (max - min) + min).toFixed(2));
+}
+
+function randInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 function randomDate(startDaysAgo: number, endDaysAgo = 0) {
@@ -176,6 +183,9 @@ async function main() {
   // Clean slate in dependency order
   await prisma.communicationEvent.deleteMany();
   await prisma.communication.deleteMany();
+  await prisma.journeyEnrollment.deleteMany();
+  await prisma.journeyStep.deleteMany();
+  await prisma.journey.deleteMany();
   await prisma.campaignVariant.deleteMany();
   await prisma.campaign.deleteMany();
   await prisma.segment.deleteMany();
@@ -813,6 +823,121 @@ async function main() {
 
   console.log(`  ✓ ${communicationsToInsert.length} communications`);
   console.log(`  ✓ ${eventsToInsert.length} communication events`);
+
+  // ── Journeys ─────────────────────────────────────────────────────
+  // Two demo automations so the feature is visible without waiting for the
+  // journey cron to run: a signup-triggered welcome series, and a
+  // segment-triggered win-back flow for dormant customers.
+  const welcomeJourney = await prisma.journey.create({
+    data: {
+      id: randomUUID(),
+      name: "Welcome Series",
+      status: JourneyStatus.ACTIVE,
+      triggerType: JourneyTriggerType.CUSTOMER_CREATED,
+      organizationId: orgId,
+      lastScanAt: new Date(),
+      steps: {
+        create: [
+          {
+            order: 0,
+            delayHours: 0,
+            channel: Channel.EMAIL,
+            message: "Welcome to Moda, {name}! Here's 10% off your first order: WELCOME10.",
+          },
+          {
+            order: 1,
+            delayHours: 48,
+            channel: Channel.EMAIL,
+            message: "Hi {name}, still deciding? Here are our best-selling styles in {city}.",
+          },
+          {
+            order: 2,
+            delayHours: 120,
+            channel: Channel.SMS,
+            message: "{name}, your WELCOME10 code expires soon — don't miss out!",
+          },
+        ],
+      },
+    },
+  });
+
+  const dormantSegment = segmentByName.get("Dormant Customers");
+  const winBackJourney = dormantSegment
+    ? await prisma.journey.create({
+        data: {
+          id: randomUUID(),
+          name: "Win-Back Journey",
+          status: JourneyStatus.ACTIVE,
+          triggerType: JourneyTriggerType.SEGMENT_ENTRY,
+          triggerSegmentId: dormantSegment.id,
+          organizationId: orgId,
+          steps: {
+            create: [
+              {
+                order: 0,
+                delayHours: 0,
+                channel: Channel.WHATSAPP,
+                message: "We miss you, {name}! Come back and enjoy 15% off: MISSYOU15.",
+              },
+              {
+                order: 1,
+                delayHours: 72,
+                channel: Channel.EMAIL,
+                message: "{name}, here's one more reason to return — 25% off, this week only.",
+              },
+            ],
+          },
+        },
+      })
+    : null;
+
+  console.log(`  ✓ 2 journeys (Welcome Series, Win-Back Journey)`);
+
+  // Seed a handful of enrollments so the journeys page shows activity
+  // immediately, rather than waiting for the cron's next enrollment scan.
+  const welcomeSteps = await prisma.journeyStep.findMany({
+    where: { journeyId: welcomeJourney.id },
+    orderBy: { order: "asc" },
+  });
+  const sampleNewCustomers = sample(
+    customerProfiles.filter((p) => p.persona === "NEW"),
+    40
+  );
+
+  const journeyEnrollmentsToInsert = sampleNewCustomers.map((profile, i) => {
+    const stepIndex = i % 3; // spread across the 3-step funnel for variety
+    const isComplete = stepIndex === 2 && i % 2 === 0;
+    return {
+      id: randomUUID(),
+      journeyId: welcomeJourney.id,
+      customerId: profile.id,
+      status: isComplete ? EnrollmentStatus.COMPLETED : EnrollmentStatus.ACTIVE,
+      currentStepIndex: isComplete ? 3 : stepIndex,
+      nextStepDueAt: isComplete ? null : minutesFromNow(randInt(-60, 4320)),
+      enrolledAt: randomDate(10, 1),
+      completedAt: isComplete ? randomDate(3, 1) : null,
+    };
+  });
+
+  if (winBackJourney) {
+    const dormantCustomers = sample(getAudienceCustomers("Dormant Customers"), 25);
+    for (const profile of dormantCustomers) {
+      journeyEnrollmentsToInsert.push({
+        id: randomUUID(),
+        journeyId: winBackJourney.id,
+        customerId: profile.id,
+        status: EnrollmentStatus.ACTIVE,
+        currentStepIndex: 0,
+        nextStepDueAt: minutesFromNow(randInt(-30, 2880)),
+        enrolledAt: randomDate(5, 1),
+        completedAt: null,
+      });
+    }
+  }
+
+  await prisma.journeyEnrollment.createMany({ data: journeyEnrollmentsToInsert });
+  console.log(`  ✓ ${journeyEnrollmentsToInsert.length} journey enrollments`);
+  void welcomeSteps; // referenced for clarity of intent; step data itself already seeded above
 
   console.log("🎉  Seed complete.");
 }

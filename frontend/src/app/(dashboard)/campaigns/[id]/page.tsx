@@ -1,15 +1,22 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { useCampaignAnalytics } from '@/lib/hooks';
-import { Badge, Card, LoadingState, StatCard } from '@/app/components/ui';
+import { useCampaign, useCampaignAnalytics, useCampaignVariants, useAddCampaignVariant, useDeleteCampaignVariant } from '@/lib/hooks';
+import { Badge, Button, Card, LoadingState, StatCard } from '@/app/components/ui';
+
+const INPUT_CLASS =
+  'bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg text-sm px-3 py-2 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary-soft)] transition-all';
+
+const EDITABLE_STATUSES = new Set(['DRAFT', 'SCHEDULED']);
 
 export default function CampaignDashboardPage() {
   const params = useParams();
   const id = params.id as string;
+
+  const { data: campaignRes } = useCampaign(id);
   const { data: res, isLoading, error } = useCampaignAnalytics(id);
 
   if (isLoading) {
@@ -19,6 +26,7 @@ export default function CampaignDashboardPage() {
   const metrics = res?.data?.metrics;
   const insights = res?.data?.insights;
   const variantBreakdown = res?.data?.variantBreakdown ?? [];
+  const campaign = campaignRes?.data;
 
   if (error || !metrics) {
     return (
@@ -137,7 +145,7 @@ export default function CampaignDashboardPage() {
         </div>
       </motion.div>
 
-      {/* A/B Variant Breakdown */}
+      {/* A/B Variant Breakdown (results, once dispatched) */}
       {variantBreakdown.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <h3 className="text-sm font-semibold mb-4">A/B Variant Breakdown</h3>
@@ -172,6 +180,90 @@ export default function CampaignDashboardPage() {
           </div>
         </motion.div>
       )}
+
+      {/* Variant management — only while the campaign hasn't dispatched yet */}
+      {campaign && EDITABLE_STATUSES.has(campaign.status) && (
+        <VariantManager campaignId={id} />
+      )}
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VariantManager — add/remove A/B variants for a not-yet-dispatched campaign.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function VariantManager({ campaignId }: { campaignId: string }) {
+  const { data: variantsRes } = useCampaignVariants(campaignId);
+  const variants = variantsRes?.data ?? [];
+
+  const addVariant = useAddCampaignVariant();
+  const deleteVariant = useDeleteCampaignVariant();
+
+  const [label, setLabel] = useState('');
+  const [message, setMessage] = useState('');
+  const [weight, setWeight] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAdd = async () => {
+    setError(null);
+    try {
+      await addVariant.mutateAsync({ campaignId, label, message, weight });
+      setLabel('');
+      setMessage('');
+      setWeight(1);
+    } catch (err: any) {
+      setError(err.message || 'Failed to add variant.');
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+      <h3 className="text-sm font-semibold mb-4">Manage A/B Variants</h3>
+      <Card className="p-5 space-y-4">
+        {variants.length > 0 && (
+          <div className="space-y-2">
+            {variants.map((v) => (
+              <div key={v.id} className="flex items-center gap-3 p-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)]">
+                <Badge tone="neutral" uppercase={false}>Variant {v.label}</Badge>
+                <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>weight {v.weight}</span>
+                <p className="flex-1 text-sm truncate">{v.message}</p>
+                <button
+                  onClick={() => deleteVariant.mutate({ campaignId, variantId: v.id })}
+                  disabled={deleteVariant.isPending}
+                  className="text-xs font-medium shrink-0"
+                  style={{ color: 'var(--color-accent-rose)' }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-[1fr_100px] gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Label</label>
+            <input value={label} onChange={(e) => setLabel(e.target.value)} className={INPUT_CLASS} placeholder="B" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Weight</label>
+            <input type="number" min={1} value={weight} onChange={(e) => setWeight(parseInt(e.target.value) || 1)} className={INPUT_CLASS} />
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Message</label>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} className={`${INPUT_CLASS} min-h-[70px] resize-none`} placeholder="Alternate copy to test against the base message…" />
+        </div>
+
+        {error && <p className="text-xs font-medium" style={{ color: 'var(--color-accent-rose)' }}>{error}</p>}
+
+        <div className="flex justify-end">
+          <Button size="sm" onClick={handleAdd} disabled={!label.trim() || !message.trim() || addVariant.isPending} loading={addVariant.isPending}>
+            + Add Variant
+          </Button>
+        </div>
+      </Card>
+    </motion.div>
   );
 }

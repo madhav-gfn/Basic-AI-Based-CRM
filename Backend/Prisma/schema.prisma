@@ -41,9 +41,10 @@ model Customer {
   organizationId String? @map("organization_id")
 
   // Relations
-  organization   Organization?   @relation(fields: [organizationId], references: [id])
-  orders         Order[]
-  communications Communication[]
+  organization       Organization?       @relation(fields: [organizationId], references: [id])
+  orders             Order[]
+  communications     Communication[]
+  journeyEnrollments JourneyEnrollment[]
 
   @@index([city])
   @@index([gender])
@@ -89,6 +90,7 @@ model Segment {
   // Relations
   organization Organization? @relation(fields: [organizationId], references: [id])
   campaigns    Campaign[]
+  journeys     Journey[]
 
   @@index([organizationId])
   @@map("segments")
@@ -133,29 +135,39 @@ model Campaign {
 // COMMUNICATION  (one per customer per campaign)
 // ─────────────────────────────────────────────
 model Communication {
-  id          String              @id @default(uuid())
-  campaignId  String              @map("campaign_id")
-  customerId  String              @map("customer_id")
-  channel     Channel
-  message     String // rendered personalised message
-  status      CommunicationStatus @default(PENDING)
-  scheduledAt DateTime?
-  createdAt   DateTime            @default(now()) @map("created_at")
-  updatedAt   DateTime            @updatedAt @map("updated_at")
+  id            String              @id @default(uuid())
+  // Exactly one of campaignId / journeyStepId is set — a Communication
+  // originates from either a one-off Campaign blast or a Journey step send.
+  // Enforced in application code (see JourneyService / ExecutionService);
+  // both are nullable so the two send paths can share this single tracking
+  // table (and therefore the whole webhook/analytics/activity pipeline).
+  campaignId    String?             @map("campaign_id")
+  journeyStepId String?             @map("journey_step_id")
+  customerId    String              @map("customer_id")
+  channel       Channel
+  message       String // rendered personalised message
+  status        CommunicationStatus @default(PENDING)
+  scheduledAt   DateTime?
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
 
   // A/B testing: which campaign variant this recipient was assigned (if any).
   variantId String? @map("variant_id")
 
   // Relations
-  campaign Campaign             @relation(fields: [campaignId], references: [id])
-  customer Customer             @relation(fields: [customerId], references: [id])
-  variant  CampaignVariant?     @relation(fields: [variantId], references: [id])
-  events   CommunicationEvent[]
+  campaign    Campaign?            @relation(fields: [campaignId], references: [id])
+  journeyStep JourneyStep?         @relation(fields: [journeyStepId], references: [id])
+  customer    Customer             @relation(fields: [customerId], references: [id])
+  variant     CampaignVariant?     @relation(fields: [variantId], references: [id])
+  events      CommunicationEvent[]
 
+  // NULLs are distinct in Postgres, so this only dedupes real campaign sends;
+  // journey dedupe is enforced at the enrollment level instead.
   @@unique([campaignId, customerId])
   @@index([status])
   @@index([customerId])
   @@index([variantId])
+  @@index([journeyStepId])
   @@map("communications")
 }
 
@@ -217,6 +229,7 @@ model Organization {
   segments         Segment[]
   campaigns        Campaign[]
   messageTemplates MessageTemplate[]
+  journeys         Journey[]
 
   @@map("organizations")
 }
@@ -255,6 +268,95 @@ model CampaignVariant {
 }
 
 // ─────────────────────────────────────────────
+// JOURNEY  (trigger-based multi-step automation)
+// ─────────────────────────────────────────────
+//
+// A Journey enrolls customers automatically (no marketer hits "send") when a
+// trigger condition is met, then walks each enrollee through an ordered list
+// of JourneySteps, waiting `delayHours` between each. This is deliberately
+// built on the same primitives as one-off Campaigns — Communication rows,
+// the same channel dispatch, the same webhook/analytics pipeline — so a
+// journey-originated message is indistinguishable in reporting from a
+// campaign-originated one except for its `journeyStepId`.
+model Journey {
+  id          String             @id @default(uuid())
+  name        String
+  status      JourneyStatus      @default(DRAFT)
+  triggerType JourneyTriggerType @map("trigger_type")
+
+  // Required when triggerType = SEGMENT_ENTRY; the journey enrolls each
+  // customer who currently matches this segment's definition (evaluated on
+  // every scan — see JourneyService for the "first-seen-only" semantics).
+  triggerSegmentId String? @map("trigger_segment_id")
+
+  // Watermark for trigger evaluation — CUSTOMER_CREATED / ORDER_PLACED scans
+  // only consider rows created after this timestamp, so re-running a scan
+  // never double-enrolls.
+  lastScanAt DateTime? @map("last_scan_at")
+
+  organizationId String?  @map("organization_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization   Organization?       @relation(fields: [organizationId], references: [id])
+  triggerSegment Segment?            @relation(fields: [triggerSegmentId], references: [id])
+  steps          JourneyStep[]
+  enrollments    JourneyEnrollment[]
+
+  @@index([status])
+  @@index([triggerSegmentId])
+  @@index([organizationId])
+  @@map("journeys")
+}
+
+model JourneyStep {
+  id         String  @id @default(uuid())
+  journeyId  String  @map("journey_id")
+  // 0-based order within the journey. Enforced unique per journey in
+  // application code (Prisma doesn't support composite ordering constraints
+  // cleanly here without extra migration ceremony this project doesn't use).
+  order      Int
+  // Hours to wait after the previous step (or after enrollment, for step 0)
+  // before sending this one.
+  delayHours Int     @default(0) @map("delay_hours")
+  channel    Channel
+  message    String // may contain {name}, {city}, {email} tokens
+
+  journey        Journey         @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  communications Communication[]
+
+  @@index([journeyId])
+  @@map("journey_steps")
+}
+
+model JourneyEnrollment {
+  id         String           @id @default(uuid())
+  journeyId  String           @map("journey_id")
+  customerId String           @map("customer_id")
+  status     EnrollmentStatus @default(ACTIVE)
+
+  // Index into the journey's ordered steps of the NEXT step to send.
+  currentStepIndex Int       @default(0) @map("current_step_index")
+  // When the next step becomes eligible to send. Null once COMPLETED/EXITED.
+  nextStepDueAt    DateTime? @map("next_step_due_at")
+
+  enrolledAt  DateTime  @default(now()) @map("enrolled_at")
+  completedAt DateTime? @map("completed_at")
+  exitedAt    DateTime? @map("exited_at")
+
+  journey  Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  // A customer may only have one ACTIVE run through a given journey at a
+  // time; app logic allows re-enrollment after COMPLETED/EXITED rather than
+  // enforcing that here (Prisma unique constraints can't be conditional).
+  @@index([journeyId, status])
+  @@index([customerId])
+  @@index([nextStepDueAt])
+  @@map("journey_enrollments")
+}
+
+// ─────────────────────────────────────────────
 // ENUMS
 // ─────────────────────────────────────────────
 enum Channel {
@@ -273,6 +375,25 @@ enum ConsentStatus {
 enum UserRole {
   ADMIN
   MEMBER
+}
+
+enum JourneyStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum JourneyTriggerType {
+  CUSTOMER_CREATED
+  ORDER_PLACED
+  SEGMENT_ENTRY
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  EXITED
 }
 
 enum CampaignStatus {

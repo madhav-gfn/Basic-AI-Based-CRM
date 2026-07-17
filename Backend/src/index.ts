@@ -10,10 +10,12 @@ import importRouter from "./routes/import.routes";
 import consentRouter from "./routes/consent.routes";
 import templateRouter from "./routes/template.routes";
 import authRouter from "./routes/auth.routes";
+import journeyRouter from "./routes/journey.routes";
 import webhookRouter from "./controllers/webhook.controller";
 import { errorHandler } from "./middleware/errorHandler";
 import { optionalAuth } from "./middleware/auth";
 import { initCron } from "./cron/campaign.cron";
+import { initJourneyCron } from "./cron/journey.cron";
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -49,6 +51,7 @@ app.use("/api/ai", aiRouter);
 app.use("/api/campaigns", campaignRouter);
 app.use("/api/consent", consentRouter);
 app.use("/api/templates", templateRouter);
+app.use("/api/journeys", journeyRouter);
 app.use("/api/webhooks", webhookRouter);
 
 // ── AI CSV Import route ─────────────────────────────────────────────────
@@ -57,6 +60,7 @@ app.use("/api/import", importRouter);
 app.use(errorHandler);
 
 initCron();
+initJourneyCron();
 
 app.listen(PORT, () => {
   console.log(`[CRM Backend] Running on port ${PORT}`);

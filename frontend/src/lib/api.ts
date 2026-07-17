@@ -1,22 +1,17 @@
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-const browserOrigin =
-  typeof window !== 'undefined' ? window.location.origin : undefined;
-const localBackendHost = 'http://localhost:3001';
 
-const API_URL = rawApiUrl
-  ? rawApiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "") + '/api'
-  : browserOrigin
-  ? browserOrigin.includes('localhost:3000')
-    ? `${localBackendHost}/api`
-    : `${browserOrigin}/api`
-  : `${localBackendHost}/api`;
+// In the browser, always use relative "/api" so requests go through the
+// Next.js rewrite proxy (see next.config.ts).  The proxy forwards them to
+// the backend (localhost:3001 in dev, or the production URL).
+// On the server side (SSR), use the explicit env var so Node can reach the
+// backend directly.
+const API_URL =
+  typeof window !== 'undefined'
+    ? '/api'                              // browser → Next.js proxy
+    : rawApiUrl
+      ? rawApiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "") + '/api'
+      : 'http://localhost:3001/api';      // SSR fallback
 
-if (typeof window !== 'undefined' && !rawApiUrl) {
-  console.warn(
-    '[frontend] NEXT_PUBLIC_API_URL is not configured. Using local backend fallback:',
-    API_URL
-  );
-}
 
 function buildApiUrl(path: string) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -116,6 +111,34 @@ export async function getCustomers(page = 1, limit = 20): Promise<CustomersRespo
   return apiFetch(`/customers?page=${page}&limit=${limit}`);
 }
 
+export interface Order {
+  id: string;
+  customerId: string;
+  orderDate: string;
+  orderValue: number;
+  category: string;
+}
+
+export interface CustomerProfile extends Customer {
+  orders: Order[];
+}
+
+export async function getCustomerProfile(id: string): Promise<{ success: boolean; data: CustomerProfile }> {
+  return apiFetch(`/customers/${id}`);
+}
+
+export interface CustomerMetrics {
+  customerId: string;
+  totalOrders: number;
+  lifetimeSpend: number;
+  averageOrderValue: number;
+  lastPurchaseDate: string | null;
+}
+
+export async function getCustomerMetrics(id: string): Promise<{ success: boolean; data: CustomerMetrics }> {
+  return apiFetch(`/customers/${id}/metrics`);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Segments
 // ─────────────────────────────────────────────────────────────────────────────
@@ -203,6 +226,10 @@ export interface CampaignsResponse {
 
 export async function getCampaigns(): Promise<CampaignsResponse> {
   return apiFetch('/campaigns');
+}
+
+export async function getCampaignById(id: string): Promise<{ success: boolean; data: Campaign }> {
+  return apiFetch(`/campaigns/${id}`);
 }
 
 export interface DraftCampaignPayload {
@@ -573,6 +600,11 @@ export async function getMe(): Promise<{ success: boolean; data: AuthResponse['d
   return apiFetch('/auth/me');
 }
 
+/** Clears the stored session token. No server round-trip — JWTs are stateless. */
+export function logout(): void {
+  setAuthToken(null);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Campaign Variants
 // ─────────────────────────────────────────────────────────────────────────────
@@ -609,4 +641,87 @@ export async function deleteCampaignVariant(
   return apiFetch(`/campaigns/${campaignId}/variants/${variantId}`, {
     method: 'DELETE',
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Journeys (trigger-based automation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type JourneyTriggerType = 'CUSTOMER_CREATED' | 'ORDER_PLACED' | 'SEGMENT_ENTRY';
+export type JourneyStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
+export type EnrollmentStatus = 'ACTIVE' | 'COMPLETED' | 'EXITED';
+
+export interface JourneyStep {
+  id: string;
+  journeyId: string;
+  order: number;
+  delayHours: number;
+  channel: string;
+  message: string;
+}
+
+export interface Journey {
+  id: string;
+  name: string;
+  status: JourneyStatus;
+  triggerType: JourneyTriggerType;
+  triggerSegmentId: string | null;
+  triggerSegment?: { id?: string; name: string } | null;
+  lastScanAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  steps?: JourneyStep[];
+  _count?: { steps: number; enrollments: number };
+  activeEnrollments?: number;
+  enrollmentStats?: Record<EnrollmentStatus, number>;
+}
+
+export interface JourneyEnrollment {
+  id: string;
+  journeyId: string;
+  customerId: string;
+  status: EnrollmentStatus;
+  currentStepIndex: number;
+  nextStepDueAt: string | null;
+  enrolledAt: string;
+  completedAt: string | null;
+  exitedAt: string | null;
+  customer?: { name: string; email: string };
+}
+
+export interface CreateJourneyPayload {
+  name: string;
+  triggerType: JourneyTriggerType;
+  triggerSegmentId?: string;
+  steps: { delayHours: number; channel: string; message: string }[];
+}
+
+export async function getJourneys(): Promise<{ success: boolean; data: Journey[] }> {
+  return apiFetch('/journeys');
+}
+
+export async function getJourney(id: string): Promise<{ success: boolean; data: Journey }> {
+  return apiFetch(`/journeys/${id}`);
+}
+
+export async function createJourney(
+  payload: CreateJourneyPayload
+): Promise<{ success: boolean; data: Journey }> {
+  return apiFetch('/journeys', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateJourneyStatus(
+  id: string,
+  status: JourneyStatus
+): Promise<{ success: boolean; data: Journey }> {
+  return apiFetch(`/journeys/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function getJourneyEnrollments(
+  id: string
+): Promise<{ success: boolean; data: JourneyEnrollment[] }> {
+  return apiFetch(`/journeys/${id}/enrollments`);
 }

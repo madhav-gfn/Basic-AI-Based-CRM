@@ -35,7 +35,7 @@ flowchart TD
     end
 
     %% Channel Service
-    subgraph CS[Channel Service - Express / port 3002]
+    subgraph CS[Channel Service - Express / port 3004]
         direction TB
         Simulator["POST /simulator/send"]
         Events["Simulates outcomes:\nSENT → DELIVERED → OPENED → CLICKED"]
@@ -74,8 +74,13 @@ erDiagram
     CUSTOMER ||--o{ ORDER : places
     CUSTOMER ||--o{ COMMUNICATION : receives
     SEGMENT ||--o{ CAMPAIGN : targets
+    SEGMENT ||--o{ JOURNEY : triggers
     CAMPAIGN ||--o{ COMMUNICATION : generates
     CAMPAIGN ||--o{ CAMPAIGN_VARIANT : has
+    JOURNEY ||--o{ JOURNEY_STEP : contains
+    JOURNEY ||--o{ JOURNEY_ENROLLMENT : enrolls
+    CUSTOMER ||--o{ JOURNEY_ENROLLMENT : "is enrolled in"
+    JOURNEY_STEP ||--o{ COMMUNICATION : generates
     COMMUNICATION ||--o{ COMMUNICATION_EVENT : tracks
 
     ORGANIZATION {
@@ -137,11 +142,33 @@ erDiagram
         String channel
         String status
         String variantId FK
+        String campaignId FK
+        String journeyStepId FK
     }
     COMMUNICATION_EVENT {
         String id PK
         String eventType
         DateTime timestamp
+    }
+    JOURNEY {
+        String id PK
+        String name
+        String status
+        String triggerType
+        String triggerSegmentId FK
+    }
+    JOURNEY_STEP {
+        String id PK
+        Int order
+        Int delayHours
+        String channel
+        String message
+    }
+    JOURNEY_ENROLLMENT {
+        String id PK
+        String status
+        Int currentStepIndex
+        DateTime nextStepDueAt
     }
 ```
 
@@ -225,12 +252,23 @@ AI is integrated at **three distinct decision points**, not bolted on:
 |--------|------|-------------|
 | `PATCH` | `/api/consent/:customerId` | Update customer consent status |
 
+### Journeys
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/journeys` | List journeys with step/enrollment counts |
+| `POST` | `/api/journeys` | Create a journey (trigger + ordered steps) |
+| `GET` | `/api/journeys/:id` | Journey detail incl. steps + enrollment stats |
+| `PATCH` | `/api/journeys/:id/status` | Transition DRAFT → ACTIVE → PAUSED → ARCHIVED |
+| `POST` | `/api/journeys/:id/steps` | Add a step (DRAFT journeys only) |
+| `DELETE` | `/api/journeys/:id/steps/:stepId` | Remove a step (DRAFT journeys only) |
+| `GET` | `/api/journeys/:id/enrollments` | List customer enrollments and their progress |
+
 ### Webhooks
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/webhooks/receipt` | Receive delivery/engagement events from channel service |
 
-### Channel Service (separate process, port 3002)
+### Channel Service (separate process, port 3004)
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/simulator/send` | Accept a communication, simulate delivery outcome |
@@ -296,7 +334,7 @@ npm run dev            # Starts on port 3001
 ```bash
 cd Channel
 npm install
-npm run dev            # Starts on port 3002
+npm run dev            # Starts on port 3004
 ```
 
 ### 3. Frontend
@@ -327,7 +365,7 @@ Open `http://localhost:3000` to access the CRM dashboard.
 │       ├── middleware/         # Auth (JWT), error handler
 │       ├── types/              # CRM type definitions
 │       └── utils/              # Response helpers
-├── Channel/                    # Stubbed channel simulator (port 3002)
+├── Channel/                    # Stubbed channel simulator (port 3004)
 │   └── src/index.ts            # Standalone Express app
 ├── frontend/                   # Next.js dashboard
 │   └── src/
@@ -357,6 +395,16 @@ Campaigns support **weighted A/B variant testing**:
 1. **Create variants** via `POST /api/campaigns/:id/variants` with a `label`, `message`, and optional `weight` (default: 1).
 2. **Execution** assigns each customer to a variant using weighted random selection. The variant's message template replaces the campaign's base message.
 3. **Analytics** includes a `variantBreakdown` array in `GET /api/campaigns/:id/analytics`, showing per-variant funnel metrics (delivered rate, open rate, click rate).
+
+## Journeys — Trigger-Based Automation
+
+Unlike Campaigns (one-off blasts a marketer launches manually), **Journeys** enroll customers automatically and walk them through an ordered, timed sequence of messages — welcome series, win-back flows, post-purchase follow-ups.
+
+- **Triggers**: `CUSTOMER_CREATED` (on signup), `ORDER_PLACED` (on any order), `SEGMENT_ENTRY` (any customer currently matching a chosen segment — enrolled once, the first time they're seen matching).
+- **Steps**: an ordered list of `{ delayHours, channel, message }`. Step 0 sends immediately (or on the next scan); each subsequent step waits `delayHours` after the previous one.
+- **Engine**: a dedicated cron (`journey.cron.ts`, every 5 minutes by default — `JOURNEY_CRON_SCHEDULE`) runs two passes: an **enrollment scan** (evaluates triggers, enrolls newly-qualifying customers) and a **step dispatch** (sends any step whose delay has elapsed).
+- **Shared pipeline**: journey sends reuse the exact same `Communication` tracking table, channel dispatch, webhook-driven status updates, and consent suppression as Campaigns (see `dispatch.util.ts`) — so a journey message is indistinguishable in analytics and the customer activity timeline from a campaign message, aside from its origin label.
+- **Consent-aware**: opted-out customers are never enrolled; a customer who opts out mid-journey has their enrollment marked `EXITED` on the next dispatch pass instead of receiving further steps.
 
 ---
 

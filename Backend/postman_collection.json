@@ -6,11 +6,11 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3004"
+      "value": "http://localhost:3001"
     },
     {
       "key": "channelUrl",
-      "value": "http://localhost:3001"
+      "value": "http://localhost:3004"
     },
     {
       "key": "customerId",

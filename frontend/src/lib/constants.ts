@@ -20,3 +20,16 @@ export const CHANNEL_ICONS: Record<string, string> = {
   SMS: '📱',
   RCS: '🔗',
 };
+
+export const JOURNEY_STATUS_TONE: Record<string, Tone> = {
+  ACTIVE: 'success',
+  PAUSED: 'warning',
+  DRAFT: 'neutral',
+  ARCHIVED: 'danger',
+};
+
+export const JOURNEY_TRIGGER_LABELS: Record<string, string> = {
+  CUSTOMER_CREATED: 'On signup',
+  ORDER_PLACED: 'On order placed',
+  SEGMENT_ENTRY: 'On entering segment',
+};

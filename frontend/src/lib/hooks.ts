@@ -2,9 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getDashboardStats,
   getCampaigns,
+  getCampaignById,
   getCampaignAnalytics,
   getSegments,
   getCustomers,
+  getCustomerProfile,
+  getCustomerMetrics,
+  getCustomerActivity,
   getTemplates,
   createSegment,
   draftCampaign,
@@ -13,8 +17,19 @@ import {
   updateTemplate,
   deleteTemplate,
   searchCustomers,
+  updateConsent,
+  getCampaignVariants,
+  addCampaignVariant,
+  deleteCampaignVariant,
+  getJourneys,
+  getJourney,
+  getJourneyEnrollments,
+  createJourney,
+  updateJourneyStatus,
   type CreateSegmentPayload,
   type DraftCampaignPayload,
+  type CreateJourneyPayload,
+  type JourneyStatus,
 } from './api';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,6 +91,46 @@ export function useTemplates(channel?: string) {
   return useQuery({
     queryKey: ['templates', channel],
     queryFn: () => getTemplates(channel),
+  });
+}
+
+export function useCampaign(id: string | undefined) {
+  return useQuery({
+    queryKey: ['campaign', id],
+    queryFn: () => getCampaignById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useCustomerProfile(id: string | undefined) {
+  return useQuery({
+    queryKey: ['customer-profile', id],
+    queryFn: () => getCustomerProfile(id!),
+    enabled: !!id,
+  });
+}
+
+export function useCustomerMetrics(id: string | undefined) {
+  return useQuery({
+    queryKey: ['customer-metrics', id],
+    queryFn: () => getCustomerMetrics(id!),
+    enabled: !!id,
+  });
+}
+
+export function useCustomerActivity(id: string | undefined) {
+  return useQuery({
+    queryKey: ['customer-activity', id],
+    queryFn: () => getCustomerActivity(id!),
+    enabled: !!id,
+  });
+}
+
+export function useCampaignVariants(campaignId: string | undefined) {
+  return useQuery({
+    queryKey: ['campaign-variants', campaignId],
+    queryFn: () => getCampaignVariants(campaignId!),
+    enabled: !!campaignId,
   });
 }
 
@@ -150,6 +205,96 @@ export function useDeleteTemplate() {
     mutationFn: (id: string) => deleteTemplate(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['templates'] });
+    },
+  });
+}
+
+export function useUpdateConsent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, consentStatus }: {
+      customerId: string;
+      consentStatus: 'OPTED_IN' | 'OPTED_OUT' | 'UNKNOWN';
+    }) => updateConsent(customerId, consentStatus),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['customer-search'] });
+      qc.invalidateQueries({ queryKey: ['customer-profile', variables.customerId] });
+    },
+  });
+}
+
+export function useAddCampaignVariant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, ...payload }: {
+      campaignId: string;
+      label: string;
+      message: string;
+      weight?: number;
+    }) => addCampaignVariant(campaignId, payload),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['campaign-variants', variables.campaignId] });
+    },
+  });
+}
+
+export function useDeleteCampaignVariant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ campaignId, variantId }: { campaignId: string; variantId: string }) =>
+      deleteCampaignVariant(campaignId, variantId),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['campaign-variants', variables.campaignId] });
+    },
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Journeys
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function useJourneys() {
+  return useQuery({
+    queryKey: ['journeys'],
+    queryFn: getJourneys,
+  });
+}
+
+export function useJourney(id: string | undefined) {
+  return useQuery({
+    queryKey: ['journey', id],
+    queryFn: () => getJourney(id!),
+    enabled: !!id,
+  });
+}
+
+export function useJourneyEnrollments(id: string | undefined) {
+  return useQuery({
+    queryKey: ['journey-enrollments', id],
+    queryFn: () => getJourneyEnrollments(id!),
+    enabled: !!id,
+  });
+}
+
+export function useCreateJourney() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateJourneyPayload) => createJourney(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['journeys'] });
+    },
+  });
+}
+
+export function useUpdateJourneyStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: JourneyStatus }) =>
+      updateJourneyStatus(id, status),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['journeys'] });
+      qc.invalidateQueries({ queryKey: ['journey', variables.id] });
     },
   });
 }
