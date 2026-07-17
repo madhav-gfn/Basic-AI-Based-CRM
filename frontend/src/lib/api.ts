@@ -266,11 +266,12 @@ export interface UpdateStatusResponse {
 export async function updateCampaignStatus(
   campaignId: string,
   status: string,
-  scheduledAt?: string | null
+  scheduledAt?: string | null,
+  message?: string
 ): Promise<UpdateStatusResponse> {
   return apiFetch(`/campaigns/${campaignId}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ status, scheduledAt }),
+    body: JSON.stringify({ status, scheduledAt, message }),
   });
 }
 

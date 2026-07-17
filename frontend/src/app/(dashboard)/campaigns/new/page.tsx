@@ -36,6 +36,7 @@ export default function NewCampaignPage() {
   // ── Data between steps ─────────────────────────────────────────────────
   const [segmentSuggestion, setSegmentSuggestion] = useState<SegmentSuggestion | null>(null);
   const [draftResult, setDraftResult] = useState<DraftCampaignResponse['data'] | null>(null);
+  const [editableMessage, setEditableMessage] = useState('');
 
   // ── Step 1: AI suggests segment filters ────────────────────────────────
   const handleSuggestSegment = async () => {
@@ -82,6 +83,7 @@ export default function NewCampaignPage() {
       });
 
       setDraftResult(draftRes.data);
+      setEditableMessage(draftRes.data.campaign.message ?? '');
       setStep('campaign-draft');
     } catch (err: any) {
       setError(err.message || 'Failed to draft campaign.');
@@ -97,7 +99,7 @@ export default function NewCampaignPage() {
     setLoading(true);
 
     try {
-      await updateCampaignStatus(draftResult.campaign.id, 'SCHEDULED');
+      await updateCampaignStatus(draftResult.campaign.id, 'SCHEDULED', null, editableMessage);
       setStep('done');
       // Navigate to the campaign analytics page after a brief delay
       setTimeout(() => router.push(`/campaigns/${draftResult.campaign.id}`), 1500);
@@ -380,8 +382,13 @@ export default function NewCampaignPage() {
                     <span className="text-xs font-bold text-white uppercase tracking-wider">{draftResult.campaign.channel}</span>
                     <span className="text-white/60 text-xs">Preview</span>
                   </div>
-                  <div className="p-5">
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{draftResult.campaign.message}</p>
+                  <div className="p-0 border-none">
+                    <textarea
+                      value={editableMessage}
+                      onChange={(e) => setEditableMessage(e.target.value)}
+                      className="w-full min-h-[150px] p-5 text-sm leading-relaxed bg-transparent resize-none outline-none focus:ring-0 focus:border-transparent transition-all"
+                      placeholder="Type your message here..."
+                    />
                   </div>
                 </div>
               </div>

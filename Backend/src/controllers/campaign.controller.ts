@@ -50,9 +50,10 @@ export async function getCampaignById(req: Request, res: Response, next: NextFun
 
 export async function updateCampaignStatus(req: Request, res: Response, next: NextFunction) {
   try {
-    const { status, scheduledAt } = req.body as {
+    const { status, scheduledAt, message } = req.body as {
       status: string;
       scheduledAt?: string | null;
+      message?: string;
     };
 
     if (!status) {
@@ -63,7 +64,8 @@ export async function updateCampaignStatus(req: Request, res: Response, next: Ne
     const campaign = await campaignService.updateCampaignStatus(
       req.params.id,
       status,
-      scheduledAt
+      scheduledAt,
+      message
     );
     sendSuccess(res, campaign, "Campaign status updated");
   } catch (error) {

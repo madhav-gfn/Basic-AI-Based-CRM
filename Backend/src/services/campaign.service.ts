@@ -227,7 +227,8 @@ export class CampaignService {
   async updateCampaignStatus(
     id: string,
     status: string,
-    scheduledAt?: string | null
+    scheduledAt?: string | null,
+    message?: string
   ): Promise<Campaign> {
     const newStatus = CampaignStatus[status as keyof typeof CampaignStatus];
 
@@ -264,6 +265,7 @@ export class CampaignService {
       where: { id },
       data: {
         status: newStatus,
+        ...(message !== undefined && { message }),
         // Stamp launchedAt the first time the campaign goes RUNNING
         ...(newStatus === CampaignStatus.RUNNING &&
           existing.status !== CampaignStatus.RUNNING && {
