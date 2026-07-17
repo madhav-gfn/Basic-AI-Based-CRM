@@ -1,16 +1,11 @@
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
 
-// In the browser, always use relative "/api" so requests go through the
-// Next.js rewrite proxy (see next.config.ts).  The proxy forwards them to
-// the backend (localhost:3001 in dev, or the production URL).
-// On the server side (SSR), use the explicit env var so Node can reach the
-// backend directly.
-const API_URL =
-  typeof window !== 'undefined'
-    ? '/api'                              // browser → Next.js proxy
-    : rawApiUrl
-      ? rawApiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "") + '/api'
-      : 'http://localhost:3001/api';      // SSR fallback
+// In the browser, if NEXT_PUBLIC_API_URL is set, hit the backend directly.
+// This avoids Vercel proxy issues where the Host header gets mangled and rejected by Render.
+// If not set (like in local dev), fallback to '/api' so it goes through the Next.js proxy to localhost:3001.
+const API_URL = rawApiUrl
+  ? rawApiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "") + '/api'
+  : '/api';
 
 
 function buildApiUrl(path: string) {
