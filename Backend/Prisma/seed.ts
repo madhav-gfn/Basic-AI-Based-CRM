@@ -2,12 +2,14 @@
 // Run: pnpm --filter @xeno/db db:seed
 
 import { randomUUID } from "crypto";
+import bcrypt from "bcryptjs";
 import {
   PrismaClient,
   Channel,
   CampaignStatus,
   CommunicationStatus,
   EventType,
+  UserRole,
 } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -174,10 +176,39 @@ async function main() {
   // Clean slate in dependency order
   await prisma.communicationEvent.deleteMany();
   await prisma.communication.deleteMany();
+  await prisma.campaignVariant.deleteMany();
   await prisma.campaign.deleteMany();
   await prisma.segment.deleteMany();
+  await prisma.messageTemplate.deleteMany();
   await prisma.order.deleteMany();
   await prisma.customer.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.organization.deleteMany();
+
+  // ── Default Organization + Admin User ──────────────────────────────
+  const orgId = randomUUID();
+  const adminUserId = randomUUID();
+  const passwordHash = await bcrypt.hash("password123", 10);
+
+  await prisma.organization.create({
+    data: {
+      id: orgId,
+      name: "Moda Demo",
+      slug: "moda-demo",
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      id: adminUserId,
+      organizationId: orgId,
+      email: "admin@moda.com",
+      name: "Admin User",
+      passwordHash,
+      role: UserRole.ADMIN,
+    },
+  });
+  console.log("  ✓ Default organization (Moda Demo) + admin user (admin@moda.com / password123)");
 
   // ── Customers + Profiles ──────────────────────────────────────────
   const customerProfiles: CustomerProfile[] = [];
@@ -209,6 +240,7 @@ async function main() {
       gender: customer.gender,
       city: customer.city,
       signupDate: customer.signupDate,
+      organizationId: orgId,
     };
   });
 
@@ -402,6 +434,7 @@ async function main() {
           name: segment.name,
           createdBy: "system",
           definition: segment.definition,
+          organizationId: orgId,
         },
       })
     )
@@ -523,6 +556,7 @@ async function main() {
           operator: "AND",
           rules: [{ field: "favoriteCategory", op: "eq", value: "Apparel" }],
         } satisfies SegmentDefinition,
+        organizationId: orgId,
       },
     });
     segments.push(apparelSegment);
@@ -559,6 +593,7 @@ async function main() {
           status: campaignSeed.status,
           launchedAt,
           scheduledAt,
+          organizationId: orgId,
         },
       });
 
@@ -574,6 +609,35 @@ async function main() {
   );
   console.log(`  ✓ ${campaigns.length} campaigns`);
 
+  // ── A/B Variants for one campaign (demo) ──────────────────────────
+  // Add variants to the "Summer Re-Engagement" campaign to demonstrate A/B testing
+  const reEngagementCampaign = campaigns.find((c) => c.name === "Summer Re-Engagement");
+  let variantA: { id: string } | null = null;
+  let variantB: { id: string } | null = null;
+  if (reEngagementCampaign) {
+    [variantA, variantB] = await Promise.all([
+      prisma.campaignVariant.create({
+        data: {
+          id: randomUUID(),
+          campaignId: reEngagementCampaign.id,
+          label: "A",
+          message: "We miss you! Come back and enjoy 20% off on your favourite styles 🛍️",
+          weight: 1,
+        },
+      }),
+      prisma.campaignVariant.create({
+        data: {
+          id: randomUUID(),
+          campaignId: reEngagementCampaign.id,
+          label: "B",
+          message: "Hey {name}, it's been a while! Here's an exclusive 25% off just for you ✨",
+          weight: 1,
+        },
+      }),
+    ]);
+    console.log("  ✓ 2 A/B variants for Summer Re-Engagement campaign");
+  }
+
   // ── Communications + Events ──────────────────────────────────────
   const communicationsToInsert: {
     id: string;
@@ -583,10 +647,12 @@ async function main() {
     message: string;
     status: CommunicationStatus;
     createdAt: Date;
+    variantId?: string;
   }[] = [];
 
   const eventsToInsert: {
     id: string;
+    eventId: string;
     communicationId: string;
     eventType: EventType;
     timestamp: Date;
@@ -687,7 +753,8 @@ async function main() {
     const audience = chooseExecutionAudience(campaignSeed.audience);
     const baseLaunch = campaign.launchedAt ?? randomDate(30, 1);
 
-    for (const profile of audience) {
+    for (let idx = 0; idx < audience.length; idx++) {
+      const profile = audience[idx];
       const communicationId = randomUUID();
       const shouldFail = Math.random() < 0.04;
       const events = eventTimeline(baseLaunch, shouldFail ? "fail" : "success");
@@ -706,6 +773,12 @@ async function main() {
                     ? CommunicationStatus.DELIVERED
                     : CommunicationStatus.SENT;
 
+      // For the Summer Re-Engagement campaign, assign A/B variants
+      let commVariantId: string | undefined;
+      if (campaign.name === "Summer Re-Engagement" && variantA && variantB) {
+        commVariantId = idx % 2 === 0 ? variantA.id : variantB.id;
+      }
+
       communicationsToInsert.push({
         id: communicationId,
         campaignId: campaign.id,
@@ -714,11 +787,13 @@ async function main() {
         message: buildMessage(profile, campaign.name, campaign.channel),
         status: finalStatus,
         createdAt: baseLaunch,
+        variantId: commVariantId,
       });
 
       for (const event of events) {
         eventsToInsert.push({
           id: randomUUID(),
+          eventId: randomUUID(),
           communicationId,
           eventType: event.eventType,
           timestamp: event.timestamp,

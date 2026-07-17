@@ -21,10 +21,34 @@ model Customer {
   city       String?
   signupDate DateTime @default(now()) @map("signup_date")
 
+  // ── Consent & deliverability (DPDP Act / GDPR compliance) ──────────────
+  // A marketing CRM must honour opt-out. Suppressed customers are excluded
+  // from all campaign dispatch. The token backs a public one-click
+  // unsubscribe link embedded in outbound messages.
+  consentStatus    ConsentStatus @default(OPTED_IN) @map("consent_status")
+  unsubscribedAt   DateTime?     @map("unsubscribed_at")
+  unsubscribeToken String        @unique @default(uuid()) @map("unsubscribe_token")
+
+  // Free-form segmentation aids: tags for manual grouping, attributes for
+  // arbitrary custom fields imported per brand (loyalty tier, birthday, …).
+  tags       String[] @default([])
+  attributes Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Tenancy (nullable for backward-compatible backfill onto existing rows).
+  organizationId String? @map("organization_id")
+
   // Relations
+  organization   Organization?   @relation(fields: [organizationId], references: [id])
   orders         Order[]
   communications Communication[]
 
+  @@index([city])
+  @@index([gender])
+  @@index([consentStatus])
+  @@index([organizationId])
   @@map("customers")
 }
 
@@ -41,6 +65,11 @@ model Order {
   // Relations
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
+  // Hot-path indexes: segment aggregation groups by customerId and filters
+  // by orderDate/category on nearly every query.
+  @@index([customerId])
+  @@index([orderDate])
+  @@index([category])
   @@map("orders")
 }
 
@@ -50,13 +79,18 @@ model Order {
 model Segment {
   id         String   @id @default(uuid())
   name       String
-  definition Json     // e.g. { "rules": [{ "field": "city", "op": "eq", "value": "Delhi" }] }
+  definition Json // e.g. { "rules": [{ "field": "city", "op": "eq", "value": "Delhi" }] }
   createdBy  String   @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  organizationId String? @map("organization_id")
 
   // Relations
-  campaigns Campaign[]
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  campaigns    Campaign[]
 
+  @@index([organizationId])
   @@map("segments")
 }
 
@@ -64,20 +98,34 @@ model Segment {
 // CAMPAIGN
 // ─────────────────────────────────────────────
 model Campaign {
-  id         String         @id @default(uuid())
-  name       String
-  audienceId String         @map("audience_id")
-  channel    Channel
-  objective  String?
-  status     CampaignStatus @default(DRAFT)
-  createdAt  DateTime       @default(now()) @map("created_at")
-  launchedAt DateTime?      @map("launched_at")
+  id          String         @id @default(uuid())
+  name        String
+  audienceId  String         @map("audience_id")
+  channel     Channel
+  objective   String?
+  status      CampaignStatus @default(DRAFT)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  launchedAt  DateTime?      @map("launched_at")
   scheduledAt DateTime?      @map("scheduled_at")
-  message    String?
-  // Relations
-  audience       Segment         @relation(fields: [audienceId], references: [id])
-  communications Communication[]
+  message     String?
 
+  // Cached post-campaign AI insights — generated once on completion instead
+  // of re-calling Gemini on every analytics page load.
+  insights Json?
+
+  organizationId String? @map("organization_id")
+
+  // Relations
+  organization   Organization?     @relation(fields: [organizationId], references: [id])
+  audience       Segment           @relation(fields: [audienceId], references: [id])
+  communications Communication[]
+  variants       CampaignVariant[]
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([audienceId])
+  @@index([organizationId])
   @@map("campaigns")
 }
 
@@ -89,17 +137,25 @@ model Communication {
   campaignId  String              @map("campaign_id")
   customerId  String              @map("customer_id")
   channel     Channel
-  message     String              // rendered personalised message
+  message     String // rendered personalised message
   status      CommunicationStatus @default(PENDING)
   scheduledAt DateTime?
   createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  // A/B testing: which campaign variant this recipient was assigned (if any).
+  variantId String? @map("variant_id")
 
   // Relations
   campaign Campaign             @relation(fields: [campaignId], references: [id])
   customer Customer             @relation(fields: [customerId], references: [id])
+  variant  CampaignVariant?     @relation(fields: [variantId], references: [id])
   events   CommunicationEvent[]
 
   @@unique([campaignId, customerId])
+  @@index([status])
+  @@index([customerId])
+  @@index([variantId])
   @@map("communications")
 }
 
@@ -108,15 +164,94 @@ model Communication {
 // ─────────────────────────────────────────────
 model CommunicationEvent {
   id              String    @id @default(uuid())
+  // First-class idempotency key from the channel service. A unique constraint
+  // makes duplicate delivery of the same webhook a no-op at the DB level —
+  // replacing the previous fragile ±10s timestamp-window heuristic.
+  eventId         String    @unique @default(uuid()) @map("event_id")
   communicationId String    @map("communication_id")
   eventType       EventType
   timestamp       DateTime  @default(now())
-  metadata        Json?     // optional: link clicked, error reason, etc.
+  metadata        Json? // optional: link clicked, error reason, etc.
 
   // Relations
   communication Communication @relation(fields: [communicationId], references: [id])
 
+  @@index([communicationId])
+  @@index([eventType])
   @@map("communication_events")
+}
+
+// ─────────────────────────────────────────────
+// MESSAGE TEMPLATE  (reusable campaign copy)
+// ─────────────────────────────────────────────
+model MessageTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  channel     Channel
+  body        String // may contain {name}, {city}, {email} tokens
+  description String?
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  organizationId String?       @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([channel])
+  @@index([organizationId])
+  @@map("message_templates")
+}
+
+// ─────────────────────────────────────────────
+// ORGANIZATION & USER  (multi-tenancy + auth)
+// ─────────────────────────────────────────────
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users            User[]
+  customers        Customer[]
+  segments         Segment[]
+  campaigns        Campaign[]
+  messageTemplates MessageTemplate[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  email          String   @unique
+  name           String
+  passwordHash   String   @map("password_hash")
+  role           UserRole @default(MEMBER)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// CAMPAIGN VARIANT  (A/B testing)
+// ─────────────────────────────────────────────
+model CampaignVariant {
+  id         String @id @default(uuid())
+  campaignId String @map("campaign_id")
+  label      String // "A", "B", "Control", …
+  message    String
+  weight     Int    @default(1) // relative allocation weight
+
+  campaign       Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  communications Communication[]
+
+  @@index([campaignId])
+  @@map("campaign_variants")
 }
 
 // ─────────────────────────────────────────────
@@ -127,6 +262,17 @@ enum Channel {
   SMS
   EMAIL
   RCS
+}
+
+enum ConsentStatus {
+  OPTED_IN
+  OPTED_OUT
+  UNKNOWN
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
 }
 
 enum CampaignStatus {
@@ -153,6 +299,6 @@ enum EventType {
   OPENED
   READ
   CLICKED
-  CONVERTED  // order placed because of this comms
+  CONVERTED // order placed because of this comms
   FAILED
 }
