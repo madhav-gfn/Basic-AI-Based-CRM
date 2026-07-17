@@ -22,6 +22,25 @@ export interface CampaignMetrics {
   };
 }
 
+export interface VariantMetrics {
+  variantId: string;
+  label: string;
+  audienceSize: number;
+  counts: {
+    sent: number;
+    delivered: number;
+    opened: number;
+    read: number;
+    clicked: number;
+    failed: number;
+  };
+  rates: {
+    deliveredRate: number;
+    openedRate: number;
+    clickedRate: number;
+  };
+}
+
 export class AnalyticsService {
   /**
    * Calculates real-time campaign performance metrics based on communication events,
@@ -108,5 +127,77 @@ export class AnalyticsService {
         conversionRate: calculateRate(conversions, counts.CLICKED),
       },
     };
+  }
+
+  /**
+   * Returns per-variant funnel metrics for campaigns with A/B testing enabled.
+   * If the campaign has no variants, returns an empty array.
+   */
+  static async getVariantBreakdown(campaignId: string): Promise<VariantMetrics[]> {
+    // Load variants for this campaign
+    const variants = await prisma.campaignVariant.findMany({
+      where: { campaignId },
+      orderBy: { label: "asc" },
+    });
+
+    if (variants.length === 0) return [];
+
+    const calculateRate = (numerator: number, denominator: number): number =>
+      denominator > 0 ? Number(((numerator / denominator) * 100).toFixed(2)) : 0;
+
+    const results: VariantMetrics[] = [];
+
+    for (const variant of variants) {
+      // Count communications assigned to this variant
+      const audienceSize = await prisma.communication.count({
+        where: { campaignId, variantId: variant.id },
+      });
+
+      // Event counts for this variant's communications
+      const eventCounts = await prisma.communicationEvent.groupBy({
+        by: ["eventType"],
+        where: {
+          communication: {
+            campaignId,
+            variantId: variant.id,
+          },
+        },
+        _count: { id: true },
+      });
+
+      const counts: Record<string, number> = {
+        SENT: 0,
+        DELIVERED: 0,
+        OPENED: 0,
+        READ: 0,
+        CLICKED: 0,
+        FAILED: 0,
+      };
+
+      eventCounts.forEach((ec) => {
+        counts[ec.eventType] = ec._count.id;
+      });
+
+      results.push({
+        variantId: variant.id,
+        label: variant.label,
+        audienceSize,
+        counts: {
+          sent: counts.SENT,
+          delivered: counts.DELIVERED,
+          opened: counts.OPENED,
+          read: counts.READ,
+          clicked: counts.CLICKED,
+          failed: counts.FAILED,
+        },
+        rates: {
+          deliveredRate: calculateRate(counts.DELIVERED, counts.SENT),
+          openedRate: calculateRate(counts.OPENED, counts.DELIVERED),
+          clickedRate: calculateRate(counts.CLICKED, counts.OPENED),
+        },
+      });
+    }
+
+    return results;
   }
 }

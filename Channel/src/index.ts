@@ -10,7 +10,7 @@ import { randomUUID } from "crypto";
 const PORT = process.env.PORT ?? 3002;
 const CRM_RECEIPT_URL =
   process.env.CRM_RECEIPT_URL?.trim().replace(/\/+$/, "") ??
-  "http://localhost:3004/api/webhooks/receipt";
+  "http://localhost:3001/api/webhooks/receipt";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -24,7 +24,7 @@ interface SendPayload {
   message: string;
 }
 
-type SimulatedEvent = "SENT" | "DELIVERED" | "OPENED" | "CLICKED" | "FAILED";
+type SimulatedEvent = "SENT" | "DELIVERED" | "OPENED" | "READ" | "CLICKED" | "FAILED";
 
 interface WebhookPayload {
   event_id: string;
@@ -44,6 +44,7 @@ interface WebhookPayload {
 const OUTCOME_POOL: SimulatedEvent[] = [
   "DELIVERED", "DELIVERED", "DELIVERED", "DELIVERED", "DELIVERED",
   "OPENED",    "OPENED",    "OPENED",    "OPENED",    "OPENED",    "OPENED",
+  "READ",      "READ",      "READ",
   "CLICKED",   "CLICKED",   "CLICKED",   "CLICKED",
   "FAILED",    "FAILED",    "FAILED",
 ];
@@ -55,14 +56,16 @@ const OUTCOME_POOL: SimulatedEvent[] = [
  *   FAILED    → [SENT, FAILED]
  *   DELIVERED → [SENT, DELIVERED]
  *   OPENED    → [SENT, DELIVERED, OPENED]
- *   CLICKED   → [SENT, DELIVERED, OPENED, CLICKED]
+ *   READ      → [SENT, DELIVERED, OPENED, READ]
+ *   CLICKED   → [SENT, DELIVERED, OPENED, READ, CLICKED]
  */
 const EVENT_CHAIN: Record<SimulatedEvent, SimulatedEvent[]> = {
   SENT:      ["SENT"],
   FAILED:    ["SENT", "FAILED"],
   DELIVERED: ["SENT", "DELIVERED"],
   OPENED:    ["SENT", "DELIVERED", "OPENED"],
-  CLICKED:   ["SENT", "DELIVERED", "OPENED", "CLICKED"],
+  READ:      ["SENT", "DELIVERED", "OPENED", "READ"],
+  CLICKED:   ["SENT", "DELIVERED", "OPENED", "READ", "CLICKED"],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

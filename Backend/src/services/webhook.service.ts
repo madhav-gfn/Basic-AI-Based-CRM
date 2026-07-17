@@ -109,23 +109,20 @@ export class WebhookService {
         return await prisma.$transaction(
           async (tx) => {
             // ── Step 2: Idempotency check ────────────────────────────────────────
-            const duplicate = await tx.communicationEvent.findFirst({
-              where: {
-                OR: [
-                  {
-                    communicationId: payload.communication_id,
-                    eventType,
-                    timestamp: {
-                      gte: new Date(eventTimestamp.getTime() - 10_000),
-                      lte: new Date(eventTimestamp.getTime() + 10_000),
-                    },
-                  },
-                ],
-              },
-            });
+            // The channel service stamps every webhook with a stable event_id.
+            // A unique constraint on CommunicationEvent.eventId makes dedup exact
+            // and race-safe (no fuzzy timestamp window that could drop or admit
+            // events incorrectly). If event_id is absent, fall through and let the
+            // column default generate one (treated as a distinct event).
+            if (payload.event_id) {
+              const duplicate = await tx.communicationEvent.findUnique({
+                where: { eventId: payload.event_id },
+                select: { id: true },
+              });
 
-            if (duplicate) {
-              return { outcome: "duplicate" as const };
+              if (duplicate) {
+                return { outcome: "duplicate" as const };
+              }
             }
 
             // ── Step 3: Load current Communication ──────────────────────────────
@@ -141,13 +138,12 @@ export class WebhookService {
             // ── Step 4: Insert CommunicationEvent (audit log — always written) ──
             const loggedEvent = await tx.communicationEvent.create({
               data: {
+                // Omit when absent so the column default (uuid) applies.
+                ...(payload.event_id ? { eventId: payload.event_id } : {}),
                 communicationId: payload.communication_id,
                 eventType,
                 timestamp: eventTimestamp,
-                metadata: {
-                  event_id: payload.event_id,
-                  ...(payload.metadata ?? {}),
-                },
+                metadata: (payload.metadata ?? {}) as Prisma.InputJsonValue,
               },
             });
 

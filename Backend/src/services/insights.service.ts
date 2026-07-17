@@ -1,4 +1,6 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { Prisma, CampaignStatus } from "@prisma/client";
+import { prisma } from "../config/database";
 import { AnalyticsService, CampaignMetrics } from "./analytics.service";
 
 const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
@@ -45,6 +47,22 @@ export class InsightsService {
    * @returns AI-generated business insights in a strictly typed JSON structure
    */
   static async generateCampaignInsights(campaignId: string): Promise<CampaignInsights> {
+    // 0. Cache: COMPLETED/FAILED campaigns are terminal — their metrics no
+    //    longer change, so we serve previously generated insights instead of
+    //    re-calling Gemini on every analytics page load (slow + rate-limited).
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { status: true, insights: true },
+    });
+
+    const isTerminal =
+      campaign?.status === CampaignStatus.COMPLETED ||
+      campaign?.status === CampaignStatus.FAILED;
+
+    if (isTerminal && campaign?.insights) {
+      return campaign.insights as unknown as CampaignInsights;
+    }
+
     // 1. RAG Pattern: Retrieve metrics data
     const metrics: CampaignMetrics = await AnalyticsService.getCampaignMetrics(campaignId);
 
@@ -71,8 +89,21 @@ ${JSON.stringify(metrics, null, 2)}`;
       throw new Error("Failed to generate insights from Gemini. The response was empty.");
     }
 
-    // 4. Parse and return the strict JSON schema
+    // 4. Parse the strict JSON schema
     const insights: CampaignInsights = JSON.parse(response.text);
+
+    // 5. Persist for terminal campaigns so subsequent loads skip the AI call.
+    if (isTerminal) {
+      await prisma.campaign
+        .update({
+          where: { id: campaignId },
+          data: { insights: insights as unknown as Prisma.InputJsonValue },
+        })
+        .catch((err) =>
+          console.error(`[Insights] Failed to cache insights for ${campaignId}:`, err)
+        );
+    }
+
     return insights;
   }
 }
