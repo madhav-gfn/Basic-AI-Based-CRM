@@ -5,6 +5,8 @@ import {
   getCustomerProfile,
   getCustomerMetrics,
   getTopCustomers,
+  searchCustomers,
+  getCustomerActivity,
 } from "../controllers/customer.controller";
 
 const router = Router();
@@ -15,6 +17,9 @@ router.get("/", getAllCustomers);
 // GET /api/customers/dashboard — dashboard stats
 router.get("/dashboard", getDashboardStats);
 
+// GET /api/customers/search — free-text + faceted search (must precede /:id)
+router.get("/search", searchCustomers);
+
 // GET /api/customers/top
 router.get("/top", getTopCustomers);
 
@@ -23,5 +28,8 @@ router.get("/:id", getCustomerProfile);
 
 // GET /api/customers/:id/metrics
 router.get("/:id/metrics", getCustomerMetrics);
+
+// GET /api/customers/:id/activity — unified order + communication timeline
+router.get("/:id/activity", getCustomerActivity);
 
 export default router;
