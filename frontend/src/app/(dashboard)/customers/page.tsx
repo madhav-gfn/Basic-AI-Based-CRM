@@ -1,18 +1,22 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { getCustomers, uploadCustomersCsv, uploadOrdersCsv, type Customer, type IngestionResponse } from '@/lib/api';
+import { uploadCustomersCsv, uploadOrdersCsv, type Customer, type IngestionResponse } from '@/lib/api';
+import { useCustomers } from '@/lib/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, CardBody, CardFooter, CardHeader, Modal, Spinner } from '@/app/components/ui';
 
 type UploadResult = IngestionResponse['data'];
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const { data: res, isLoading: loading } = useCustomers(page, 20);
+  const queryClient = useQueryClient();
+
+  const customers: Customer[] = res?.data?.customers ?? [];
+  const totalPages = res?.data?.pagination?.totalPages ?? 1;
+  const total = res?.data?.pagination?.total ?? 0;
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadType, setUploadType] = useState<'customers' | 'orders'>('customers');
@@ -33,7 +37,7 @@ export default function CustomersPage() {
         ? await uploadCustomersCsv(uploadFile)
         : await uploadOrdersCsv(uploadFile);
       setUploadResult(res.data);
-      fetchPage(1); // refresh table
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
     } catch (err: any) {
       setUploadError(err.message || 'Failed to upload CSV');
     } finally {
@@ -48,23 +52,6 @@ export default function CustomersPage() {
     setUploadError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
-
-  const fetchPage = (p: number) => {
-    setLoading(true);
-    getCustomers(p, 20)
-      .then((res) => {
-        setCustomers(res.data.customers);
-        setTotalPages(res.data.pagination.totalPages);
-        setTotal(res.data.pagination.total);
-        setPage(p);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    fetchPage(1);
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -127,10 +114,10 @@ export default function CustomersPage() {
               Page {page} of {totalPages}
             </p>
             <div className="flex gap-2">
-              <Button variant="secondary" size="sm" onClick={() => fetchPage(page - 1)} disabled={page <= 1}>
+              <Button variant="secondary" size="sm" onClick={() => setPage(page - 1)} disabled={page <= 1}>
                 ← Prev
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => fetchPage(page + 1)} disabled={page >= totalPages}>
+              <Button variant="secondary" size="sm" onClick={() => setPage(page + 1)} disabled={page >= totalPages}>
                 Next →
               </Button>
             </div>

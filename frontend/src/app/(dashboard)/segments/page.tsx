@@ -1,22 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { getSegments, type Segment } from '@/lib/api';
+import { type Segment } from '@/lib/api';
+import { useSegments } from '@/lib/hooks';
 import { Badge, Card, EmptyState, LoadingState } from '@/app/components/ui';
 
 export default function SegmentsPage() {
-  const [segments, setSegments] = useState<Segment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: res, isLoading } = useSegments();
+  const segments: Segment[] = res?.data ?? [];
 
-  useEffect(() => {
-    getSegments()
-      .then((res) => setSegments(res.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return <LoadingState />;
   }
 

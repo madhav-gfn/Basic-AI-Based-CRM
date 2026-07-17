@@ -1,35 +1,22 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { getDashboardStats, type Campaign } from '@/lib/api';
+import { type Campaign } from '@/lib/api';
+import { useDashboard } from '@/lib/hooks';
 import { CAMPAIGN_STATUS_TONE, CHANNEL_ICONS } from '@/lib/constants';
 import { Badge, Button, Card, CardHeader, EmptyState, LoadingState, StatCard } from '@/app/components/ui';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<{
-    totalCustomers: number;
-    totalOrders: number;
-    totalCampaigns: number;
-    totalSegments: number;
-    totalRevenue: number;
-    recentCampaigns: Campaign[];
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: res, isLoading, error } = useDashboard();
+  const stats = res?.data;
 
-  useEffect(() => {
-    getDashboardStats()
-      .then((res) => setStats(res.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return <LoadingState />;
   }
 
-  if (!stats) {
+  if (error || !stats) {
     return <EmptyState title="Failed to load dashboard." />;
   }
 
@@ -73,7 +60,7 @@ export default function DashboardPage() {
             </Link>
           </CardHeader>
           <div className="divide-y divide-[var(--color-border)]">
-            {stats.recentCampaigns.map((campaign) => (
+            {stats.recentCampaigns.map((campaign: Campaign) => (
               <Link
                 key={campaign.id}
                 href={`/campaigns/${campaign.id}`}

@@ -1,24 +1,18 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { getCampaigns, type Campaign } from '@/lib/api';
+import { type Campaign } from '@/lib/api';
+import { useCampaigns } from '@/lib/hooks';
 import { CAMPAIGN_STATUS_TONE, CHANNEL_ICONS } from '@/lib/constants';
 import { Badge, Button, Card, EmptyState, LoadingState } from '@/app/components/ui';
 
 export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: res, isLoading } = useCampaigns();
+  const campaigns: Campaign[] = res?.data ?? [];
 
-  useEffect(() => {
-    getCampaigns()
-      .then((res) => setCampaigns(res.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return <LoadingState />;
   }
 

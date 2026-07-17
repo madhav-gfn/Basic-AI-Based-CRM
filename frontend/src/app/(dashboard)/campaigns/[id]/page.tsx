@@ -1,40 +1,29 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getCampaignAnalytics, type CampaignMetrics, type CampaignInsights } from '@/lib/api';
+import { useCampaignAnalytics } from '@/lib/hooks';
 import { Badge, Card, LoadingState, StatCard } from '@/app/components/ui';
 
 export default function CampaignDashboardPage() {
   const params = useParams();
   const id = params.id as string;
+  const { data: res, isLoading, error } = useCampaignAnalytics(id);
 
-  const [metrics, setMetrics] = useState<CampaignMetrics | null>(null);
-  const [insights, setInsights] = useState<CampaignInsights | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!id) return;
-    getCampaignAnalytics(id)
-      .then((res) => {
-        setMetrics(res.data.metrics);
-        setInsights(res.data.insights);
-      })
-      .catch((err) => setError(err.message || 'Failed to load analytics.'))
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  if (loading) {
+  if (isLoading) {
     return <LoadingState />;
   }
+
+  const metrics = res?.data?.metrics;
+  const insights = res?.data?.insights;
+  const variantBreakdown = res?.data?.variantBreakdown ?? [];
 
   if (error || !metrics) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <p className="text-sm font-medium" style={{ color: 'var(--color-accent-rose)' }}>{error || 'Data not found.'}</p>
+        <p className="text-sm font-medium" style={{ color: 'var(--color-accent-rose)' }}>{(error as Error)?.message || 'Data not found.'}</p>
         <Link href="/campaigns" className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>← Back to Campaigns</Link>
       </div>
     );
@@ -147,6 +136,42 @@ export default function CampaignDashboardPage() {
           ))}
         </div>
       </motion.div>
+
+      {/* A/B Variant Breakdown */}
+      {variantBreakdown.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <h3 className="text-sm font-semibold mb-4">A/B Variant Breakdown</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {variantBreakdown.map((variant) => (
+              <Card key={variant.variantId} className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <Badge tone="neutral" className="text-xs">Variant {variant.label}</Badge>
+                  <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                    {variant.audienceSize} recipients
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--color-accent-blue)' }}>Delivered</p>
+                    <p className="text-lg font-bold">{variant.rates.deliveredRate}%</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{variant.counts.delivered} / {variant.counts.sent}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--color-accent-green)' }}>Opened</p>
+                    <p className="text-lg font-bold">{variant.rates.openedRate}%</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{variant.counts.opened} / {variant.counts.delivered}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--color-accent-amber)' }}>Clicked</p>
+                    <p className="text-lg font-bold">{variant.rates.clickedRate}%</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{variant.counts.clicked} / {variant.counts.opened}</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }
