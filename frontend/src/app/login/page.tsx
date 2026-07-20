@@ -13,11 +13,12 @@ const INPUT_CLASS =
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, tryDemo } = useAuth();
 
   const [email, setEmail] = useState('admin@saucer.ai');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,6 +32,19 @@ export default function LoginPage() {
       setError(err.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTryDemo = async () => {
+    setError(null);
+    setDemoLoading(true);
+    try {
+      await tryDemo();
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Could not start the demo. Please try again.');
+    } finally {
+      setDemoLoading(false);
     }
   };
 
@@ -49,6 +63,28 @@ export default function LoginPage() {
           <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
             Access your organization's dashboard.
           </p>
+        </div>
+
+        <div className="bg-[var(--color-card)] rounded-xl border border-[var(--color-border)] p-6 space-y-3 mb-4">
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            loading={demoLoading}
+            disabled={demoLoading}
+            onClick={handleTryDemo}
+          >
+            Try the live demo instantly
+          </Button>
+          <p className="text-xs text-center" style={{ color: 'var(--color-text-muted)' }}>
+            Spins up a sandbox workspace with sample customers, campaigns, and journeys — no signup required.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
+          <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>or sign in</span>
+          <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
         </div>
 
         <form onSubmit={handleSubmit} className="bg-[var(--color-card)] rounded-xl border border-[var(--color-border)] p-6 space-y-4">

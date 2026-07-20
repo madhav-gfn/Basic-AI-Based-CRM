@@ -10,6 +10,7 @@ import importRouter from "./routes/import.routes";
 import consentRouter from "./routes/consent.routes";
 import templateRouter from "./routes/template.routes";
 import authRouter from "./routes/auth.routes";
+import demoRouter from "./routes/demo.routes";
 import journeyRouter from "./routes/journey.routes";
 import webhookRouter from "./controllers/webhook.controller";
 import { errorHandler } from "./middleware/errorHandler";
@@ -42,6 +43,7 @@ app.use(optionalAuth);
 
 // ── Auth ────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
+app.use("/api/demo", demoRouter);
 
 // ── Existing Xeno CRM routes ────────────────────────────────────────────
 app.use("/api/ingestion", ingestionRouter);

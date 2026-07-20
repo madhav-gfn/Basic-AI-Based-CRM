@@ -1,6 +1,12 @@
 # Saucer AI — AI-Native Mini CRM for Reaching Shoppers
 
+[![CI](https://github.com/madhav-gfn/Basic-AI-Based-CRM/actions/workflows/ci.yml/badge.svg)](https://github.com/madhav-gfn/Basic-AI-Based-CRM/actions/workflows/ci.yml)
+
 A full-stack, AI-native CRM platform that helps D2C brands **decide who to talk to, what to say, and reach them** across WhatsApp, SMS, Email, and RCS.
+
+Try it instantly — no signup: open the login page and click **"Try the live demo instantly"** to spin up a sandbox workspace pre-loaded with sample customers, campaigns, and journeys.
+
+📝 [Read the write-up](docs/blog-post.md) on the architecture decisions and where AI is actually doing work versus just wrapped around a chat box.
 
 ---
 
@@ -194,6 +200,7 @@ AI is integrated at **three distinct decision points**, not bolted on:
 | `POST` | `/api/auth/register` | Register new user + organization |
 | `POST` | `/api/auth/login` | Login, returns JWT token |
 | `GET` | `/api/auth/me` | Get current user profile (requires auth) |
+| `POST` | `/api/demo/seed` | Idempotent, org-scoped: creates (or reuses) a dedicated "Saucer AI Demo" org with sample data and returns a JWT — powers the "Try the live demo" button. Never touches any other organization's data. |
 
 ### Customers
 | Method | Path | Description |
@@ -411,5 +418,4 @@ Unlike Campaigns (one-off blasts a marketer launches manually), **Journeys** enr
 ## Limitations & Known Issues
 
 1. **Queueing System:** Webhook processing and campaign execution rely on simple promises and cron scheduling. A robust message queue (like BullMQ or RabbitMQ) would be required to handle massive scale reliably.
-2. **Login UI:** The CRM has full JWT auth infrastructure but no login page in the frontend yet. Use the API directly or set the token via `setAuthToken()` in the browser console.
-3. **Real-time Updates:** Analytics are polled on page load. WebSocket/SSE integration would enable live dashboard updates.
+2. **Real-time Updates:** Analytics are polled on page load. WebSocket/SSE integration would enable live dashboard updates.

@@ -601,6 +601,12 @@ export function logout(): void {
   setAuthToken(null);
 }
 
+export async function seedDemo(): Promise<AuthResponse> {
+  const res = await apiFetch<AuthResponse>('/demo/seed', { method: 'POST' });
+  if (res.data?.token) setAuthToken(res.data.token);
+  return res;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Campaign Variants
 // ─────────────────────────────────────────────────────────────────────────────
