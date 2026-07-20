@@ -9,8 +9,13 @@ import {
   deleteVariant,
 } from "../controllers/campaign.controller";
 import { AnalyticsController } from "../controllers/analytics.controller";
+import { requireAuth } from "../middleware/auth";
 
 const router = Router();
+
+// Campaigns are org-private: every route below requires a valid session so
+// campaign.service's organizationId scoping is always enforced (not optional).
+router.use(requireAuth);
 
 // POST /api/campaigns/draft
 router.post("/draft", draftCampaign);

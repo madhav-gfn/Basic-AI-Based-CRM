@@ -25,11 +25,11 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 /**
  * AuthProvider
  *
- * The backend applies `optionalAuth` everywhere except `/auth/me` — every page
- * still works while signed out (unscoped by organization), matching the
- * backward-compatible design of the API. This context exists so the UI can
- * *offer* sign-in/sign-up and show org-scoped data once a user opts in,
- * without gating any route behind a login wall.
+ * Most backend routes still apply `optionalAuth` and work while signed out.
+ * Campaigns are the exception: they're org-private, so the `(dashboard)`
+ * route group (see `app/(dashboard)/layout.tsx`) redirects to `/login`
+ * whenever there's no signed-in user, and campaign API calls always carry a
+ * Bearer token as a result.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);

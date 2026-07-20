@@ -95,11 +95,6 @@ export default function LoginPage() {
             Create one
           </Link>
         </p>
-        <p className="text-xs text-center mt-2">
-          <Link href="/dashboard" style={{ color: 'var(--color-text-muted)' }}>
-            Continue without signing in →
-          </Link>
-        </p>
       </motion.div>
     </div>
   );
