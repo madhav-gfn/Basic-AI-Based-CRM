@@ -189,6 +189,7 @@ AI is integrated at **three distinct decision points**, not bolted on:
 | **Segment Suggestion** | `AI.service.ts` | Gemini 2.0 Flash | Translates natural-language audience descriptions into structured database filters using JSON schema enforcement |
 | **Campaign Copilot** | `AICampaign.service.ts` | Gemini 2.0 Flash | RAG pipeline: retrieves audience metrics from DB, augments system prompt, generates optimal channel + personalized message |
 | **Post-Campaign Insights** | `insights.service.ts` | Gemini 1.5 Flash | Converts funnel metrics into executive summary, identifies bottlenecks, and recommends next actions |
+| **AI CSV Import** | `aiExtractor.service.ts` | Llama 3.3 70B (Groq) | Maps arbitrary CSV column names to the Customer schema by semantic meaning, batched with retry/backoff, flagging unmappable rows instead of dropping them silently |
 
 ---
 

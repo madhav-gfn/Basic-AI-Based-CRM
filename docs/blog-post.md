@@ -9,7 +9,7 @@ record of an assignment that refused to end where it was supposed to.
 The brief was simple: decide who a D2C brand talks to, what it says, and
 which channel it says it on. That's it. Import some customers, fire off some
 campaigns, call it done. Instead I ended up building multi-tenant auth,
-weighted A/B testing, trigger-based customer journeys, and three places
+weighted A/B testing, trigger-based customer journeys, and four places
 where an LLM is doing actual work instead of sitting behind a chat bubble
 for decoration. None of that was required. I built it anyway, because
 "required" is a low bar and I was bored of clearing it.
@@ -36,7 +36,7 @@ design constraint.
 ## Where the AI is doing something, not just standing there
 
 I have zero patience for "AI features" that are a text box wired to an API
-call and nothing else. Three integrations survived the cut, and each one
+call and nothing else. Four integrations survived the cut, and each one
 had to prove it did something the rule-based version physically could not.
 
 **Segment Suggestion** turns "customers in Delhi who haven't ordered in 90
@@ -52,9 +52,26 @@ value — the numbers came out of Postgres five seconds earlier, full stop.
 paragraph a marketer will actually read, instead of a table they have to
 squint at and interpret themselves.
 
+The fourth one is the ugliest problem and the one I'm proudest of:
+**AI CSV import.** Hand it a spreadsheet from literally any source — Shopify
+export, a lead-gen tool, some intern's manually maintained Google Sheet —
+with whatever column names that system felt like using, and it maps
+"Lead Name," "Customer Name," and "Full Name" to the same field without
+being told they're synonyms. That's Llama 3.3 70B through Groq's
+OpenAI-compatible API, not Gemini — batched 20 rows at a time so one giant
+CSV doesn't blow a single context window, with exponential backoff that
+specifically waits longer on a 429 than on a generic failure. Rows missing
+a name or email get flagged `_skip` with a reason attached instead of
+silently vanishing. Duplicate emails get caught one row at a time against
+Postgres's unique constraint instead of dying mid-`createMany()` and taking
+the whole batch down with them. Nobody asked for semantic column mapping
+with retry logic. I built it because CSVs from the real world are never
+clean, and pretending otherwise is how import features rot.
+
 None of this needed a bigger model. It needed the unglamorous
-infrastructure — schema enforcement, retrieval, fallback parsing — that
-separates an "AI feature" from an API call wearing a costume.
+infrastructure — schema enforcement, retrieval, batching, backoff, fallback
+parsing — that separates an "AI feature" from an API call wearing a
+costume.
 
 ## The hacks I'll defend, and the one I won't pretend is fine
 
@@ -103,7 +120,7 @@ creates it with a few hundred synthetic customers, orders, segments, and
 campaigns; every click after that just logs you in. No wipe. No blast
 radius. No signup form standing between you and the dashboard.
 
-That's the whole thing, stripped down. Not "we added AI" — three specific
+That's the whole thing, stripped down. Not "we added AI" — four specific
 places where AI does something a rule engine can't, held together by the
 boring plumbing that makes a CRM someone could actually hand to a marketer
 without flinching. The renamed folders and the leftover `xeno_crm` database
