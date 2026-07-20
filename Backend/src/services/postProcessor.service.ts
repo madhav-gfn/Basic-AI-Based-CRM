@@ -5,7 +5,7 @@ import type { CRMRecord, SkippedRecord } from "../types/crm.types";
 // postProcessor.service.ts — Deterministic validation & normalisation
 //
 // Runs AFTER AI extraction to catch hallucinated values, normalise dates,
-// and separate skipped records. Output matches Moda CRM's Customer model
+// and separate skipped records. Output matches Saucer AI's Customer model
 // (name, email, phone, gender, city, signup_date) field-for-field.
 // ─────────────────────────────────────────────────────────────────────────────
 

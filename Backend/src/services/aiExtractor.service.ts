@@ -33,9 +33,9 @@ function getGroqClient(): OpenAI {
 
 // ── System prompt ────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are a CRM data extraction assistant for Moda CRM, an AI-native D2C customer platform.
+const SYSTEM_PROMPT = `You are a CRM data extraction assistant for Saucer AI, an AI-native D2C customer platform.
 
-Your task: Given CSV rows with ARBITRARY column names, extract and map each row into Moda CRM's Customer schema. The columns may use any naming convention — map by SEMANTIC MEANING, not exact name matching. Moda CRM's database stores ONLY these fields for a customer — do not invent extra ones.
+Your task: Given CSV rows with ARBITRARY column names, extract and map each row into Saucer AI's Customer schema. The columns may use any naming convention — map by SEMANTIC MEANING, not exact name matching. Saucer AI's database stores ONLY these fields for a customer — do not invent extra ones.
 
 TARGET CRM SCHEMA (JSON object per row):
 {

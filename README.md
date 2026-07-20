@@ -1,4 +1,4 @@
-# Moda CRM — AI-Native Mini CRM for Reaching Shoppers
+# Saucer AI — AI-Native Mini CRM for Reaching Shoppers
 
 A full-stack, AI-native CRM platform that helps D2C brands **decide who to talk to, what to say, and reach them** across WhatsApp, SMS, Email, and RCS.
 
@@ -322,12 +322,12 @@ npm install
 cp env.example .env    # Fill in DATABASE_URL, GEMINI_API_KEY, JWT_SECRET
 npx prisma generate
 npx prisma db push
-npm run db:seed        # Creates default org (Moda Demo), admin user, 2000 customers, orders, segments, campaigns
+npm run db:seed        # Creates default org (Saucer AI Demo), admin user, 2000 customers, orders, segments, campaigns
 npm run dev            # Starts on port 3001
 ```
 
 **Default Login Credentials:**
-- Email: `admin@moda.com`
+- Email: `admin@saucer.ai`
 - Password: `password123`
 
 ### 2. Channel Service

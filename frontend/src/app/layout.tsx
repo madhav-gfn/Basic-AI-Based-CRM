@@ -8,7 +8,7 @@ import { AuthProvider } from "@/lib/auth-context";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Moda CRM — AI-Native D2C Intelligence",
+  title: "Saucer AI — AI-Native D2C Intelligence",
   description: "AI-powered CRM platform for reaching and engaging shoppers across WhatsApp, SMS, Email, and RCS.",
 };
 

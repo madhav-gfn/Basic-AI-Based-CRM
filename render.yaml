@@ -1,7 +1,7 @@
 services:
   # CRM Backend API
   - type: web
-    name: moda-crm-backend
+    name: saucer-ai-backend
     env: node
     rootDir: Backend
     buildCommand: "rm -rf node_modules && npm install && node -e \"require('debug')\" && npx prisma generate --schema=./Prisma/schema.prisma && npm run build"
@@ -21,7 +21,7 @@ services:
 
   # Stubbed Channel Service
   - type: web
-    name: moda-channel-service
+    name: saucer-ai-channel-service
     env: node
     rootDir: Channel
     buildCommand: "rm -rf node_modules && npm install && npm run build"

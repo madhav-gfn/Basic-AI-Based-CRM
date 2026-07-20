@@ -76,11 +76,11 @@ export default function Sidebar() {
           </svg>
         </button>
         <div className="min-w-0 flex items-center gap-3">
-          <Image src="/main_logo.png" alt="Moda CRM Logo" width={40} height={40} className="rounded-lg shrink-0" />
+          <Image src="/main_logo.png" alt="Saucer AI Logo" width={40} height={40} className="rounded-lg shrink-0" />
           {!collapsed && (
             <div className="min-w-0">
               <h1 className="text-lg font-bold tracking-tight leading-tight whitespace-nowrap" style={{ color: 'var(--color-text)' }}>
-                Moda CRM
+                Saucer AI
               </h1>
               <p className="text-[11px] font-medium mt-0.5 whitespace-nowrap" style={{ color: 'var(--color-text-muted)' }}>
                 AI-Native D2C Intelligence

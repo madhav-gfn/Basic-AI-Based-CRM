@@ -17,7 +17,7 @@ function buildApiUrl(path: string) {
 // Auth Token Management
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TOKEN_KEY = 'moda_auth_token';
+const TOKEN_KEY = 'saucer_ai_auth_token';
 
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;

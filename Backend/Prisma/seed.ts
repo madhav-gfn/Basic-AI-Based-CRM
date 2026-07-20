@@ -203,8 +203,8 @@ async function main() {
   await prisma.organization.create({
     data: {
       id: orgId,
-      name: "Moda Demo",
-      slug: "moda-demo",
+      name: "Saucer AI Demo",
+      slug: "saucer-ai-demo",
     },
   });
 
@@ -212,13 +212,13 @@ async function main() {
     data: {
       id: adminUserId,
       organizationId: orgId,
-      email: "admin@moda.com",
+      email: "admin@saucer.ai",
       name: "Admin User",
       passwordHash,
       role: UserRole.ADMIN,
     },
   });
-  console.log("  ✓ Default organization (Moda Demo) + admin user (admin@moda.com / password123)");
+  console.log("  ✓ Default organization (Saucer AI Demo) + admin user (admin@saucer.ai / password123)");
 
   // ── Customers + Profiles ──────────────────────────────────────────
   const customerProfiles: CustomerProfile[] = [];
@@ -842,7 +842,7 @@ async function main() {
             order: 0,
             delayHours: 0,
             channel: Channel.EMAIL,
-            message: "Welcome to Moda, {name}! Here's 10% off your first order: WELCOME10.",
+            message: "Welcome to Saucer AI, {name}! Here's 10% off your first order: WELCOME10.",
           },
           {
             order: 1,

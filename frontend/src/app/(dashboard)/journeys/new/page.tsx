@@ -182,7 +182,7 @@ export default function NewJourneyPage() {
                   value={step.message}
                   onChange={(e) => updateStep(i, { message: e.target.value })}
                   className={`${INPUT_CLASS} min-h-[80px] resize-none`}
-                  placeholder="Hi {name}, welcome to Moda! Here's 10% off your first order."
+                  placeholder="Hi {name}, welcome to Saucer AI! Here's 10% off your first order."
                 />
               </div>
             </div>

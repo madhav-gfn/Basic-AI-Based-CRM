@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://moda-crm-backend.onrender.com/api/:path*"
+      "destination": "https://saucer-ai-backend.onrender.com/api/:path*"
     }
   ],
   "headers": [

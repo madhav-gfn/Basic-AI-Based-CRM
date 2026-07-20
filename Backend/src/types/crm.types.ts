@@ -1,12 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Moda CRM Types — AI-Powered CSV Import
+// Saucer AI Types — AI-Powered CSV Import
 //
 // Mirrors the `Customer` model in Prisma/schema.prisma: name, email, phone,
 // gender, city, signupDate. The AI extractor maps arbitrary CSV columns onto
 // exactly these fields — nothing more, nothing less.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** A CSV row extracted into Moda CRM's Customer shape. */
+/** A CSV row extracted into Saucer AI's Customer shape. */
 export interface CRMRecord {
   name: string;
   email: string;

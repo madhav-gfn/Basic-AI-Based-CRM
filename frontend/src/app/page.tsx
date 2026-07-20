@@ -36,7 +36,7 @@ export default function LandingPage() {
           <div className="relative w-28 h-28 md:w-36 md:h-36 rounded-2xl shadow-lg overflow-hidden bg-[var(--color-card)] p-2 border border-[var(--color-border)]">
             <Image
               src="/main_logo.png"
-              alt="Moda CRM Logo"
+              alt="Saucer AI Logo"
               fill
               sizes="(max-width: 768px) 112px, 144px"
               className="object-contain p-2"
@@ -52,7 +52,7 @@ export default function LandingPage() {
           transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}
         >
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-5" style={{ color: 'var(--color-text)' }}>
-            Moda CRM
+            Saucer AI
           </h1>
           <p className="text-lg md:text-xl font-medium max-w-2xl mx-auto leading-relaxed mb-10" style={{ color: 'var(--color-text-muted)' }}>
             AI-native D2C intelligence for reaching and engaging your shoppers across WhatsApp, SMS, Email, and RCS.

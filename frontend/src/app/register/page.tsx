@@ -51,7 +51,7 @@ export default function RegisterPage() {
       >
         <div className="flex flex-col items-center mb-8">
           <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-[var(--color-card)] p-1.5 border border-[var(--color-border)] mb-4">
-            <Image src="/main_logo.png" alt="Moda CRM" fill sizes="64px" className="object-contain p-1.5" priority />
+            <Image src="/main_logo.png" alt="Saucer AI" fill sizes="64px" className="object-contain p-1.5" priority />
           </div>
           <h1 className="text-xl font-bold tracking-tight">Create your organization</h1>
           <p className="text-sm mt-1 text-center" style={{ color: 'var(--color-text-muted)' }}>

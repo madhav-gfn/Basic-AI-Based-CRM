@@ -235,7 +235,7 @@ export default function ImporterPage() {
                 Import your customers
               </h2>
               <p style={{ fontSize: 15, color: 'var(--color-text-muted)' }}>
-                Upload any CSV file — our AI will intelligently map your columns to Moda CRM fields
+                Upload any CSV file — our AI will intelligently map your columns to Saucer AI fields
               </p>
             </div>
 
