@@ -437,11 +437,14 @@ export class JourneyService {
       where: { id: { in: created.map((c) => c.communicationId) } },
     });
     const byId = new Map(communications.map((c) => [c.id, c]));
+    const contactById = new Map(
+      due.map((e) => [e.customerId, { email: e.customer.email, phone: e.customer.phone }])
+    );
 
     const chunks = chunkArray(created, 50);
     for (const chunk of chunks) {
       const comms = chunk.map((c) => byId.get(c.communicationId)!).filter(Boolean);
-      const outcomes = await dispatchChunk(comms, "journey");
+      const outcomes = await dispatchChunk(comms, "journey", contactById);
 
       for (const outcome of outcomes) {
         const entry = chunk.find((c) => c.communicationId === outcome.communicationId);

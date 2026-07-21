@@ -1,7 +1,7 @@
 {
   "name": "channel-service",
   "version": "1.0.0",
-  "description": "Stubbed channel simulator — separate service that simulates message delivery and fires webhook callbacks to the CRM.",
+  "description": "Channel service — dispatches campaign/journey messages via a pluggable provider per channel (defaults to a simulator; real Resend/Twilio adapters are scaffolded in src/providers).",
   "main": "dist/index.js",
   "engines": {
     "node": "20.x"

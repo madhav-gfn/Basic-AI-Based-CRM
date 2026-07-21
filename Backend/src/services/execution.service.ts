@@ -115,7 +115,7 @@ export class ExecutionService {
 
       const matchingCustomers = await prisma.customer.findMany({
         where:  whereClause,
-        select: { id: true, name: true, city: true, email: true },
+        select: { id: true, name: true, city: true, email: true, phone: true },
       });
 
       // ── Frequency cap ────────────────────────────────────────────────────
@@ -223,6 +223,10 @@ export class ExecutionService {
       );
 
       // ── Step D: Chunked Dispatch ──────────────────────────────────────────
+      const contactById = new Map(
+        eligibleCustomers.map((c) => [c.id, { email: c.email, phone: c.phone }])
+      );
+
       const chunks   = chunkArray(communications, CHUNK_SIZE);
       const succeededIds: string[] = [];
       const failedIds:    string[] = [];
@@ -234,7 +238,7 @@ export class ExecutionService {
           `(${chunk.length} comms) for campaign ${campaignId}`
         );
 
-        const outcomes = await dispatchChunk(chunk, campaignId);
+        const outcomes = await dispatchChunk(chunk, campaignId, contactById);
 
         for (const outcome of outcomes) {
           if (outcome.status === "fulfilled") {

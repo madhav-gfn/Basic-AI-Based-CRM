@@ -17,6 +17,17 @@ export interface DispatchPayload {
   campaign_id: string; // channel service treats this as an opaque grouping ID
   channel: string;
   message: string;
+  // Email address or phone number, chosen by channel. The simulator ignores
+  // it; a real provider (Resend/Twilio, see Channel/src/providers) needs it
+  // to actually send. Optional so a missing contact never blocks dispatch —
+  // it just means a real provider would reject that one communication.
+  recipient?: string;
+}
+
+/** Per-customer contact info needed to address a real provider send. */
+export interface CustomerContact {
+  email: string;
+  phone: string | null;
 }
 
 export type DispatchOutcome =
@@ -62,16 +73,25 @@ export function renderMessage(
  */
 export async function dispatchChunk(
   communications: Communication[],
-  groupId: string
+  groupId: string,
+  contactById?: Map<string, CustomerContact>
 ): Promise<DispatchOutcome[]> {
   const settled = await Promise.allSettled(
     communications.map(async (comm) => {
+      const contact = contactById?.get(comm.customerId);
+      // WhatsApp/SMS need a phone number; everything else (EMAIL, RCS) uses email.
+      const recipient =
+        comm.channel === "SMS" || comm.channel === "WHATSAPP"
+          ? contact?.phone ?? undefined
+          : contact?.email;
+
       const payload: DispatchPayload = {
         communication_id: comm.id,
         customer_id: comm.customerId,
         campaign_id: groupId,
         channel: comm.channel,
         message: comm.message,
+        recipient,
       };
 
       const res = await fetch(`${CHANNEL_URL}/simulator/send`, {
